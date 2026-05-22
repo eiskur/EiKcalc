@@ -1,0 +1,1923 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EiKcalc">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1F3864">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<title>EiKcalc Suite</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#F4F7FB; --card:#FFFFFF; --surf:#EBF3FB; --inp:#FFFFFF;
+  --navy:#1F3864; --blue:#2E75B6; --lblue:#4A90D9;
+  --border:#C8DCEE; --border2:#D0E0F0;
+  --green:#375623; --gbg:#E2EFDA; --gd:#A8D08D;
+  --red:#C00000; --rbg:#FFE0E0; --rbd:#FF9999;
+  --text:#1A1A1A; --muted:#595959; --yellow:#FFF2CC; --ybd:#F4B942;
+  --r:10px; --shadow:0 2px 10px rgba(0,0,0,0.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ══════════════════════════════════════════════
+   GLOBAL HEADER
+══════════════════════════════════════════════ */
+.app-header{
+  background:linear-gradient(135deg,#1F3864,#0D2B52);
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  padding:16px 24px 0;
+  box-shadow:0 2px 12px rgba(0,0,0,0.2);
+  position:sticky; top:0; z-index:50;
+}
+.app-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.app-logo{display:flex;align-items:center;gap:10px}
+.app-logo-icon{color:var(--lblue);font-size:22px;display:flex;align-items:center}
+.app-logo-text{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:#fff;letter-spacing:3px}
+.app-logo-badge{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;padding:3px 10px;border-radius:20px}
+.app-subtitle{font-size:11px;color:#7A9FCC;letter-spacing:1px;font-family:'Barlow Condensed',sans-serif}
+.fs-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);font-size:16px;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;flex-shrink:0}
+.fs-btn:hover{background:rgba(255,255,255,0.2)}
+/* ══ Material Modal ══════════════════════════════════════════════════════ */
+.mat-modal-overlay{position:fixed;inset:0;background:rgba(15,30,60,0.55);backdrop-filter:blur(3px);z-index:300;display:none;align-items:center;justify-content:center}
+.mat-modal-overlay.open{display:flex}
+.mat-modal-box{background:#fff;border:1px solid var(--border);border-radius:14px;width:400px;max-width:96vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.25);animation:mfd .18s ease}
+@keyframes mfd{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+.mat-modal-hdr{background:linear-gradient(135deg,var(--navy),#0D2B52);padding:14px 18px;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between}
+.mat-modal-hdr h3{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:#fff;letter-spacing:1px}
+.mat-modal-close{background:rgba(255,255,255,0.12);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.mat-modal-close:hover{background:rgba(255,255,255,0.22)}
+.mat-modal-search{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--surf);flex-shrink:0}
+.mat-modal-search input{background:transparent;border:none;color:var(--text);font-size:13px;font-family:'Barlow',sans-serif;flex:1;outline:none}
+.mat-modal-list{overflow-y:auto;flex:1}
+/* Material picker trigger button */
+.mat-pick-btn{display:flex;align-items:center;gap:10px;background:var(--surf);border:1.5px solid var(--border);border-radius:8px;padding:9px 14px;cursor:pointer;font-family:'Barlow',sans-serif;font-size:13px;color:var(--blue);font-weight:600;width:100%;transition:border-color .2s,background .2s;margin-bottom:14px}
+.mat-pick-btn:hover{border-color:var(--blue);background:#e4eef8}
+.mat-pick-btn .mpb-label{flex:1;text-align:left}
+.mat-pick-btn .mpb-arrow{font-size:11px;color:var(--muted)}
+.mat-pick-btn .mpb-rho{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted)}
+
+
+/* ══════════════════════════════════════════════
+   TAB NAVIGATION
+══════════════════════════════════════════════ */
+.tab-nav{display:flex;gap:0;overflow-x:auto}
+.tab-btn{
+  display:flex;align-items:center;gap:8px;
+  background:transparent;border:none;
+  color:rgba(255,255,255,0.45);
+  padding:10px 20px;cursor:pointer;
+  border-bottom:3px solid transparent;
+  transition:all .18s;
+  white-space:nowrap;
+  font-family:'Barlow',sans-serif;
+  position:relative;
+}
+.tab-btn:hover{color:rgba(255,255,255,0.75);background:rgba(255,255,255,0.05)}
+.tab-btn.active{color:#fff;border-bottom:3px solid var(--lblue);background:rgba(255,255,255,0.07)}
+.tab-btn.disabled{opacity:0.3;cursor:default}
+.tab-icon{font-size:16px}
+.tab-label{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;display:block}
+.tab-sub{font-size:9px;color:rgba(255,255,255,0.35);display:block;margin-top:1px;letter-spacing:1px}
+.tab-btn.active .tab-sub{color:rgba(255,255,255,0.5)}
+.soon-pill{position:absolute;top:6px;right:6px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.3);font-size:7px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:1px;padding:1px 5px;border-radius:10px}
+
+/* ══════════════════════════════════════════════
+   TOOL PANELS
+══════════════════════════════════════════════ */
+.tool-panel{display:none}
+.tool-panel.active{display:block}
+
+.wrap{max-width:980px;margin:0 auto;padding:24px 20px 40px}
+.wrap-wide{max-width:960px;min-width:0;margin:0 auto;padding:24px 20px 40px}
+
+/* ══════════════════════════════════════════════
+   SHARED COMPONENTS
+══════════════════════════════════════════════ */
+.sec{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--blue);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.sec::after{content:'';flex:1;height:1px;background:var(--border)}
+.crd{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+.ir{display:flex;align-items:center;padding:13px 14px;border-bottom:1px solid var(--border);gap:10px;transition:background .15s}
+.ir:last-child{border-bottom:none}
+.ir:focus-within{background:rgba(46,117,182,0.06)}
+.il{flex:1;font-size:13px;color:var(--text)}
+.il small{display:block;font-size:10px;color:var(--muted);font-style:italic;margin-top:1px}
+.iu{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);min-width:32px;text-align:right}
+.if{background:var(--surf);border:1.5px solid var(--border);border-radius:7px;color:var(--blue);font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;padding:7px 10px;width:96px;text-align:center;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none}
+.if:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(46,117,196,0.2)}
+.if.empty{color:var(--muted);font-weight:400}
+.if.auto{background:#edfbf3;border-color:var(--gd);color:var(--green)}
+.if.auto:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(55,86,35,0.15)}
+.if::-webkit-inner-spin-button,.if::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.if[type=number]{-moz-appearance:textfield}
+.sw{position:relative}
+.is{background:var(--surf);border:1.5px solid var(--border);border-radius:7px;color:var(--lblue);font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;padding:7px 28px 7px 11px;outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;min-width:148px;transition:border-color .2s}
+.is:focus{border-color:var(--blue)}
+.sw::after{content:'▾';position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:11px;pointer-events:none}
+.ir-res{display:flex;align-items:center;padding:13px 14px;border-bottom:1px solid var(--border);gap:10px}
+.ir-res:last-child{border-bottom:none}
+.res-box{background:var(--gbg);border:1.5px solid var(--gd);border-radius:7px;color:var(--green);font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;padding:7px 10px;width:96px;text-align:center;min-height:36px;display:flex;align-items:center;justify-content:center}
+.dr{display:flex;justify-content:space-between;align-items:center;padding:5px 14px;border-bottom:1px solid rgba(0,0,0,0.05)}
+.dr:last-child{border-bottom:none}
+.dk{font-size:12px;color:var(--muted)}
+.dv{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--lblue)}
+.dv.m{color:var(--muted)}
+.hint{background:rgba(46,117,182,0.07);border:1px solid rgba(46,117,182,0.18);border-radius:var(--r);padding:10px 14px;font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:8px}
+.info-box{background:var(--yellow);border:1px solid var(--ybd);border-left:3px solid var(--ybd);border-radius:0 7px 7px 0;padding:10px 14px;font-size:11px;color:#5A4000;line-height:1.6;margin-top:4px}
+.formula-bar{display:none;background:rgba(46,117,182,0.07);border:1px solid rgba(46,117,182,0.2);border-left:3px solid var(--blue);border-radius:0 7px 7px 0;padding:9px 14px;font-size:12px;color:var(--muted);margin-bottom:16px;font-family:'JetBrains Mono',monospace}
+.formula-bar span{color:var(--blue);font-weight:600}
+.legend{display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.ld-b{width:12px;height:12px;border-radius:3px;background:var(--surf);border:1.5px solid var(--border)}
+.ld-g{width:12px;height:12px;border-radius:3px;background:var(--gbg);border:1.5px solid var(--gd)}
+
+/* ══════════════════════════════════════════════
+   SEILROLLEN-SPECIFIC
+══════════════════════════════════════════════ */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;align-items:stretch}
+.cols>div{display:flex;flex-direction:column}
+.res-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.rc{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;text-align:center;box-shadow:var(--shadow);position:relative;overflow:hidden;transition:all .25s}
+.rc::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--blue);transition:background .25s}
+.rc.ok::before{background:var(--green)}
+.rc.warn::before{background:var(--red)}
+.rl{font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--muted);font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.rv{font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:700;color:var(--blue);line-height:1;transition:color .25s}
+.rc.ok .rv{color:var(--green)}
+.rc.warn .rv{color:var(--red)}
+.runit{font-size:11px;color:var(--muted);margin-top:6px}
+.sr{display:flex;align-items:center;justify-content:space-between;padding:0 14px;min-height:48px;border-bottom:1px solid var(--border)}
+.sr:last-child{border-bottom:none}
+.sn{font-size:13px;color:var(--muted)}
+.sb{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;padding:5px 14px;border-radius:20px;transition:all .25s;white-space:nowrap}
+.sb.ok{background:var(--gbg);color:var(--green);border:1px solid var(--gd)}
+.sb.warn{background:var(--rbg);color:var(--red);border:1px solid var(--rbd)}
+.sb.neu{background:rgba(46,117,182,0.1);color:var(--muted);border:1px solid var(--border)}
+.tc-inp{background:var(--surf);border:1.5px solid var(--border);border-radius:7px;color:var(--navy);font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;padding:7px 10px;width:86px;text-align:center;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none}
+.tc-inp:focus{border-color:var(--yellow);box-shadow:0 0 0 3px rgba(244,185,66,0.2)}
+.tc-res-val{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:var(--blue);transition:color .25s}
+.tc-res-val.ok{color:var(--green)}
+.tc-res-val.warn{color:var(--red)}
+.tc-status{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;transition:all .25s;white-space:nowrap}
+.tc-status.ok{background:var(--gbg);color:var(--green);border:1px solid var(--gd)}
+.tc-status.warn{background:var(--rbg);color:var(--red);border:1px solid var(--rbd)}
+.tc-status.neu{background:rgba(46,117,182,0.1);color:var(--muted);border:1px solid var(--border)}
+.chart-wrap{margin-bottom:20px}
+.chart-card{background:var(--card);border:1px solid var(--border2);border-radius:var(--r);padding:14px 16px 10px;box-shadow:var(--shadow)}
+.chart-title{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+canvas#chart{width:100%!important;height:220px!important}
+.settings-btn{display:flex;align-items:center;gap:10px;background:var(--blue);color:#fff;border:none;border-radius:var(--r);font-family:'Barlow',sans-serif;font-size:14px;font-weight:600;padding:11px 22px;cursor:pointer;box-shadow:0 2px 12px rgba(46,117,182,0.4);transition:background .2s}
+.settings-btn:hover{background:#1F5FA0}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center}
+.mo.open{display:flex}
+.md{background:var(--card);border:1px solid var(--border);border-radius:14px;width:560px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.5);animation:fd .2s ease}
+@keyframes fd{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
+.md-hdr{background:linear-gradient(135deg,var(--navy),#0D2B52);padding:16px 20px;border-radius:14px 14px 0 0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.md-hdr h2{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:#fff}
+.md-close{background:rgba(255,255,255,0.12);color:#fff;border:none;border-radius:50%;width:30px;height:30px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.md-close:hover{background:rgba(255,255,255,0.2)}
+.md-body{padding:16px 20px}
+.pw-row{display:flex;gap:8px;margin-bottom:10px}
+.pw-inp{flex:1;background:var(--surf);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;padding:9px 12px;outline:none}
+.pw-inp:focus{border-color:var(--blue)}
+.pw-btn{background:var(--blue);color:#fff;border:none;border-radius:7px;font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;padding:9px 16px;cursor:pointer}
+.pf{display:none}
+.pf.ul{display:block}
+.pr{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);gap:10px}
+.pr:last-child{border-bottom:none}
+.pn{font-size:13px;color:var(--text);font-weight:600;font-family:'JetBrains Mono',monospace}
+.pd{font-size:10px;color:var(--muted)}
+.pu{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);min-width:62px;text-align:right}
+.pv{background:var(--surf);border:1.5px solid var(--border);border-radius:7px;color:var(--lblue);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;padding:6px 8px;width:90px;text-align:center;outline:none}
+.pv:focus{border-color:var(--blue)}
+.ma{display:flex;gap:8px;margin-top:14px}
+.bs{flex:1;background:var(--blue);color:#fff;border:none;border-radius:9px;font-family:'Barlow',sans-serif;font-size:14px;font-weight:700;padding:11px;cursor:pointer}
+.br{background:rgba(244,185,66,0.12);color:#996600;border:1px solid rgba(244,185,66,0.3);border-radius:9px;font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;padding:11px 18px;cursor:pointer}
+
+/* ══════════════════════════════════════════════
+   WÄRMEDEHNUNG-SPECIFIC
+══════════════════════════════════════════════ */
+.layout-wt{display:flex;gap:20px;align-items:flex-start}
+.mat-col{width:255px;min-width:220px;flex-shrink:0}
+.calc-col{flex:1;min-width:0}
+.search-wrap{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border);background:var(--surf)}
+.search-icon{color:var(--muted);font-size:16px}
+.mat-scroll{overflow-y:auto;max-height:580px}
+.cat-btn{display:flex;align-items:center;gap:8px;width:100%;background:#F0F5FB;border:none;padding:7px 12px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid var(--border);color:var(--muted)}
+.cat-btn.open{color:var(--blue);background:var(--surf)}
+.cat-arrow{margin-left:auto;font-size:9px}
+.cat-items{display:none}
+.cat-items.open{display:block}
+.mat-btn{display:flex;flex-direction:column;width:100%;background:transparent;border:none;padding:7px 12px 7px 18px;cursor:pointer;text-align:left;border-bottom:1px solid #F0F4F8;border-left:3px solid transparent;transition:background .1s;font-family:'Barlow',sans-serif}
+.mat-btn:hover{background:#F5F9FD}
+.mat-btn.selected{background:#EEF4FD;border-left:3px solid var(--blue)}
+.mat-name{color:var(--text);font-size:12px;font-weight:600}
+.mat-alpha-val{color:var(--muted);font-size:10px;font-family:'JetBrains Mono',monospace;margin-top:1px}
+.mat-badge{display:none;align-items:center;gap:10px;background:var(--surf);border:1px solid var(--border);border-radius:7px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:var(--blue);font-weight:600}
+.mat-badge .ba{margin-left:auto;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:10px}
+
+/* ══════════════════════════════════════════════
+   PLACEHOLDER
+══════════════════════════════════════════════ */
+.placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:400px;color:var(--muted);gap:12px}
+.placeholder .pl-icon{font-size:52px;opacity:.3}
+.placeholder .pl-text{font-family:'Barlow Condensed',sans-serif;font-size:14px;letter-spacing:2px;text-transform:uppercase;opacity:.4}
+
+@media(max-width:680px){
+  .cols{grid-template-columns:1fr}
+  .layout-wt{flex-direction:column}
+  .mat-col{width:100%}
+  .res-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ APP HEADER + TAB NAV ══════════════════════════════════════════════ -->
+<header class="app-header">
+  <div class="app-header-top">
+    <div class="app-logo">
+      <span class="app-logo-icon">
+        <svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Outer gear ring -->
+          <circle cx="17" cy="17" r="13" stroke="#4A90D9" stroke-width="1.5" fill="none"/>
+          <circle cx="17" cy="17" r="9.5" stroke="#4A90D9" stroke-width="1" fill="none" stroke-dasharray="2 1.5"/>
+          <!-- Gear teeth -->
+          <rect x="15.5" y="2.5" width="3" height="3" rx="0.5" fill="#4A90D9"/>
+          <rect x="15.5" y="28.5" width="3" height="3" rx="0.5" fill="#4A90D9"/>
+          <rect x="2.5" y="15.5" width="3" height="3" rx="0.5" fill="#4A90D9"/>
+          <rect x="28.5" y="15.5" width="3" height="3" rx="0.5" fill="#4A90D9"/>
+          <rect x="6.2" y="6.2" width="3" height="3" rx="0.5" fill="#4A90D9" transform="rotate(45 7.7 7.7)"/>
+          <rect x="24.1" y="6.2" width="3" height="3" rx="0.5" fill="#4A90D9" transform="rotate(45 25.6 7.7)"/>
+          <rect x="6.2" y="24.1" width="3" height="3" rx="0.5" fill="#4A90D9" transform="rotate(45 7.7 25.6)"/>
+          <rect x="24.1" y="24.1" width="3" height="3" rx="0.5" fill="#4A90D9" transform="rotate(45 25.6 25.6)"/>
+          <!-- EiK text center -->
+          <text x="17" y="20.5" text-anchor="middle" font-family="'Barlow Condensed',sans-serif" font-size="9" font-weight="700" fill="#FFFFFF" letter-spacing="0.5">EiK</text>
+        </svg>
+      </span>
+      <span class="app-logo-text">EiKcalc</span>
+      <span class="app-logo-badge">SUITE v1.0</span>
+    </div>
+    <span class="app-subtitle">EiK Engineering Calculator Suite</span>
+    <button class="fs-btn" id="fs-btn" title="Vollbild">⛶</button>
+  </div>
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tool="torque">
+      <span class="tab-icon">🔩</span>
+      <span>
+        <span class="tab-label">Anzugsmoment</span>
+        <span class="tab-sub">Gewinde · Vorspannkraft</span>
+      </span>
+    </button>
+    <button class="tab-btn" data-tool="volume">
+      <span class="tab-icon">📐</span>
+      <span>
+        <span class="tab-label">Volumen &amp; Masse</span>
+        <span class="tab-sub">Zylinder · Rechteck · Flächen</span>
+      </span>
+    </button>
+    <button class="tab-btn" data-tool="thermal">
+      <span class="tab-icon">🌡</span>
+      <span>
+        <span class="tab-label">Wärmeausdehnung</span>
+        <span class="tab-sub">Länge · D_a · D_i · Wanddicke</span>
+      </span>
+    </button>
+    <button class="tab-btn" data-tool="hydro">
+      <span class="tab-icon">⚙</span>
+      <span>
+        <span class="tab-label">Hydraulikzylinder</span>
+        <span class="tab-sub">Kraft · Volumenstrom · Leistung</span>
+      </span>
+    </button>
+    <button class="tab-btn" data-tool="sheave">
+      <span class="tab-icon">⬡</span>
+      <span>
+        <span class="tab-label">Seilrollenfutter</span>
+        <span class="tab-sub">Schnellrechner · EN 12927</span>
+      </span>
+    </button>
+  </nav>
+</header>
+
+<!-- ══ TOOL: WÄRMEDEHNUNG ════════════════════════════════════════════════ -->
+<div id="tool-thermal" class="tool-panel">
+<div class="wrap">
+
+  <div class="legend">
+    <span class="li"><span class="ld-b"></span> Eingabe</span>
+    <span class="li"><span class="ld-g"></span> Ergebnis</span>
+  </div>
+
+  <div class="calc-col" style="max-width:900px;margin:0 auto;width:100%">
+
+
+
+    <!-- Calculation -->
+    <div class="calc-col">
+
+      <div class="sec">① Gemeinsame Eingaben</div>
+      <div class="crd" style="margin-bottom:20px">
+        <button class="mat-pick-btn" id="thermal-mat-btn" onclick="openMatModal('thermal')">
+          <span>⬡</span>
+          <span class="mpb-label" id="badge-name">← Werkstoff wählen</span>
+          <span class="mpb-rho" id="badge-alpha"></span>
+          <span class="mpb-arrow">▼</span>
+        </button>
+        <div class="ir">
+          <div class="il">Referenztemperatur <b>T₀</b><small>Ausgangstemperatur des Bauteils</small></div>
+          <span class="iu">°C</span>
+          <input id="inp-t0" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+        <div class="ir">
+          <div class="il">Bauteiltemperatur <b>T_B</b><small>Betriebstemperatur</small></div>
+          <span class="iu">°C</span>
+          <input id="inp-t1" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+        <div class="ir-res">
+          <div class="il">Ausdehnungskoeffizient <b>α</b><small>← aus Materialdatenbank</small></div>
+          <span class="iu">10⁻⁶/K</span>
+          <span class="res-box" id="res-alpha">–</span>
+        </div>
+        <div class="ir-res">
+          <div class="il">Temperaturdifferenz <b>ΔT</b></div>
+          <span class="iu">°C</span>
+          <span class="res-box" id="res-dt">–</span>
+        </div>
+      </div>
+
+      <div class="formula-bar" id="formula-bar">
+        ΔL = L₀ · α · ΔT &nbsp;→&nbsp; <span id="formula-text"></span>
+      </div>
+
+      <div class="sec">② Längenausdehnung</div>
+      <div class="crd" style="margin-bottom:20px">
+        <div class="ir">
+          <div class="il">Ausgangslänge <b>L₀</b></div>
+          <span class="iu">mm</span>
+          <input id="inp-l0" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+        <div class="ir-res">
+          <div class="il">Längenänderung <b>ΔL</b></div>
+          <span class="iu">mm</span><span class="res-box" id="res-dl-mm">–</span>
+        </div>
+        <div class="ir-res">
+          <div class="il">Neue Länge <b>L</b></div>
+          <span class="iu">mm</span><span class="res-box" id="res-l1">–</span>
+        </div>
+      </div>
+
+      <div class="sec">③ Außendurchmesser D_a</div>
+      <div class="crd" style="margin-bottom:20px">
+        <div class="ir">
+          <div class="il">Außendurchmesser <b>D_a₀</b></div>
+          <span class="iu">mm</span>
+          <input id="inp-da0" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+        <div class="ir-res">
+          <div class="il">Zunahme <b>ΔD_a</b></div>
+          <span class="iu">mm</span><span class="res-box" id="res-dda-mm">–</span>
+        </div>
+        <div class="ir-res">
+          <div class="il">Zunahme <b>ΔD_a</b></div>
+          <span class="iu">µm</span><span class="res-box" id="res-dda-um">–</span>
+        </div>
+        <div class="ir-res">
+          <div class="il">Neuer Außendurchmesser <b>D_a</b></div>
+          <span class="iu">mm</span><span class="res-box" id="res-da1">–</span>
+        </div>
+      </div>
+
+      <div class="sec">④ Innendurchmesser D_i (Bohrung / Lagerbohrung)</div>
+      <div class="crd" style="margin-bottom:20px">
+        <div class="ir">
+          <div class="il">Innendurchmesser <b>D_i₀</b></div>
+          <span class="iu">mm</span>
+          <input id="inp-di0" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+        <div class="ir-res">
+          <div class="il">Zunahme <b>ΔD_i</b></div>
+          <span class="iu">mm</span><span class="res-box" id="res-ddi-mm">–</span>
+        </div>
+        <div class="ir-res">
+          <div class="il">Zunahme <b>ΔD_i</b></div>
+          <span class="iu">µm</span><span class="res-box" id="res-ddi-um">–</span>
+        </div>
+        <div class="ir-res">
+          <div class="il">Neuer Innendurchmesser <b>D_i</b></div>
+          <span class="iu">mm</span><span class="res-box" id="res-di1">–</span>
+        </div>
+      </div>
+
+      <div class="sec">⑤ Wanddicke &amp; Passungshinweis</div>
+      <div class="crd" style="margin-bottom:16px">
+        <div class="ir-res">
+          <div class="il">Wanddicke <b>t₀</b> = (D_a − D_i) / 2</div>
+          <span class="iu">mm</span><span class="res-box" id="res-t0">–</span>
+        </div>
+        <div class="ir-res">
+          <div class="il">Neue Wanddicke <b>t</b></div>
+          <span class="iu">mm</span><span class="res-box" id="res-t1">–</span>
+        </div>
+        <div class="ir-res">
+          <div class="il">Bohrung öffnet sich um</div>
+          <span class="iu">mm</span><span class="res-box" id="res-bore-mm">–</span>
+        </div>
+        <div class="ir-res">
+          <div class="il">Bohrung öffnet sich um</div>
+          <span class="iu">µm</span><span class="res-box" id="res-bore-um">–</span>
+        </div>
+        <div style="padding:12px 14px">
+          <div class="info-box">
+            ℹ️ &nbsp;Beim Erwärmen wird die Bohrung (D_i) <b>größer</b> — nicht kleiner!
+            Das Loch dehnt sich genauso aus wie ein Vollstab gleichen Durchmessers.
+            Deshalb kann ein Lager oder eine Buchse beim Erwärmen leicht eingesetzt werden (<b>Schrumpfsitz</b>).
+          </div>
+        </div>
+      </div>
+
+      <div class="hint" id="hint-text">← Material aus der Datenbank wählen und Temperaturen sowie Maße eingeben.</div>
+    </div>
+  </div>
+</div>
+</div><!-- /tool-thermal -->
+
+
+<!-- ══ TOOL: SEILROLLENFUTTER ════════════════════════════════════════════ -->
+<div id="tool-sheave" class="tool-panel">
+<div class="wrap-wide">
+
+  <div class="cols">
+    <!-- Links: Eingabe -->
+    <div>
+      <div class="sec">Eingabe</div>
+      <div class="crd" style="flex:1;display:flex;flex-direction:column">
+        <div class="ir">
+          <div class="il">Rollendurchmesser <b>D</b><small>Aussendurchmesser Seilrolle</small></div>
+          <span class="iu">mm</span>
+          <input id="iD" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+        <div class="ir">
+          <div class="il">Seildurchmesser <b>d</b><small>Nenndurchmesser Seil</small></div>
+          <span class="iu">mm</span>
+          <input id="id" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+        <div class="ir">
+          <div class="il">Seilgeschwindigkeit <b>v</b><small>Betriebsgeschwindigkeit</small></div>
+          <span class="iu">m/s</span>
+          <input id="iv" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+        <div class="ir">
+          <div class="il">Rillenform<small>R = Rundrille · F = Flachrille</small></div>
+          <div class="sw"><select class="is" id="ir2">
+            <option value="R">R – Rundrille</option>
+            <option value="F">F – Flachrille</option>
+          </select></div>
+        </div>
+        <div class="ir">
+          <div class="il">Seiltyp<small>L = Litze · H = Herkules · V = Verschlossen</small></div>
+          <div class="sw"><select class="is" id="is2">
+            <option value="L">L – Litzenseil</option>
+            <option value="H">H – Herkules</option>
+            <option value="V">V – Verschlossen</option>
+          </select></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rechts: Ergebnis + Status -->
+    <div>
+      <div class="sec">Ergebnis</div>
+      <div class="res-grid">
+        <div class="rc" id="cS"><div class="rl">S_ZUL</div><div class="rv" id="vS">–</div><div class="runit">kN</div></div>
+        <div class="rc" id="cT"><div class="rl">T_KERN</div><div class="rv" id="vT">–</div><div class="runit">°C</div></div>
+      </div>
+      <div class="sec">Status</div>
+      <div class="crd" style="flex:1;display:flex;flex-direction:column;justify-content:space-between">
+        <div class="sr"><span class="sn">Rollenlast vs. p·v-Limit</span><span class="sb neu" id="s1">–</span></div>
+        <div class="sr"><span class="sn">Kerntemp. vs. T_max</span><span class="sb neu" id="s2">–</span></div>
+        <div class="sr" style="border-top:1px solid var(--border2);margin-top:2px;padding-top:10px">
+          <div style="flex:1">
+            <span class="sn">Rollenlast <b>S</b> (Prüfung)</span>
+            <small style="display:block;font-size:10px;color:var(--muted);font-style:italic">Einzugebende Betriebslast</small>
+          </div>
+          <span style="font-size:11px;color:var(--muted);margin-right:8px">kN</span>
+          <input class="tc-inp" id="tcS" type="number" value="" min="0" step="0.1" placeholder="kN">
+        </div>
+        <div class="sr">
+          <span class="sn">Kerntemperatur bei S</span>
+          <span>
+            <span class="tc-res-val neu" id="tcT">–</span>
+            <span style="font-size:11px;color:var(--muted);margin-left:3px">°C</span>
+          </span>
+          <span class="tc-status neu" id="tcStat">–</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diagramm -->
+  <div class="chart-wrap">
+    <div class="sec">S_zul über Geschwindigkeit</div>
+    <div class="chart-card">
+      <div class="chart-title">S_zul [kN] &nbsp;·&nbsp; v = 4–12 m/s &nbsp;·&nbsp; aktuelle Eingaben</div>
+      <canvas id="chart" style="height:220px!important"></canvas>
+    </div>
+  </div>
+
+  <!-- Details -->
+  <div class="sec">Details</div>
+  <div class="crd" style="margin-bottom:12px">
+    <div class="dr"><span class="dk">p·v-Modell</span><span class="dv" id="dpv">–</span></div>
+    <div class="dr"><span class="dk">SER-Grenzwert</span><span class="dv" id="dser">–</span></div>
+    <div class="dr"><span class="dk">Massgebend</span><span class="dv" id="dm">–</span></div>
+    <div class="dr"><span class="dk">Rillendruck p</span><span class="dv m" id="dp">–</span></div>
+    <div class="dr"><span class="dk">T_max Grenzwert</span><span class="dv m" id="dtm">–</span></div>
+  </div>
+  <div class="hint" style="margin-bottom:20px">
+    Berechnungsmodell: MIN(p·v-Modell, SER nach Semperit/Prenner) · Seiltyp beeinflusst c_s-Koeffizient · Rillenformfaktor k_r: R=1.0, F=0.8
+  </div>
+
+  <button class="settings-btn" id="fab">⚙&nbsp;&nbsp;Modellparameter / Einstellungen</button>
+</div>
+</div><!-- /tool-sheave -->
+
+<!-- Placeholder panels -->
+<!-- ══ TOOL: ANZUGSMOMENT ═════════════════════════════════════════════════ -->
+<div id="tool-torque" class="tool-panel active">
+<div class="wrap">
+
+  <div class="legend">
+    <span class="li"><span class="ld-b"></span> Eingabe</span>
+    <span class="li"><span class="ld-g"></span> Ergebnis</span>
+  </div>
+
+  <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+
+    <!-- ── Eingabe ── -->
+    <div style="flex:1;min-width:280px">
+
+      <div class="sec">① Gewindeauswahl</div>
+      <div class="crd" style="margin-bottom:20px">
+        <div class="ir">
+          <div class="il">Metrisches Gewinde <b>M</b><small>ISO 68-1 / DIN 13</small></div>
+          <div class="sw">
+            <select class="is" id="tq-thread" style="min-width:140px">
+              <option value="">– wählen –</option>
+            </select>
+          </div>
+        </div>
+        <div class="ir">
+          <div class="il">Festigkeitsklasse<small>ISO 898-1 (Schrauben)</small></div>
+          <div class="sw">
+            <select class="is" id="tq-grade" style="min-width:140px">
+              <option value="4.6">4.6</option>
+              <option value="5.6">5.6</option>
+              <option value="6.8">6.8</option>
+              <option value="8.8" selected>8.8</option>
+              <option value="10.9">10.9</option>
+              <option value="12.9">12.9</option>
+            </select>
+          </div>
+        </div>
+        <div class="ir">
+          <div class="il">Schmierung<small>beeinflusst Reibungszahl μ</small></div>
+          <div class="sw">
+            <select class="is" id="tq-lube" style="min-width:140px">
+              <option value="dry">Trocken (μ = 0.14)</option>
+              <option value="light" selected>Leicht geölt (μ = 0.12)</option>
+              <option value="oiled">Geölt (μ = 0.10)</option>
+              <option value="moly">MoS₂ / Paste (μ = 0.08)</option>
+            </select>
+          </div>
+        </div>
+        <div class="ir">
+          <div class="il">Anzugsgrad α_A<small>Ausnutzung der Streckgrenze</small></div>
+          <div class="sw">
+            <select class="is" id="tq-alpha" style="min-width:140px">
+              <option value="0.70">0.70 — kontrolliert</option>
+              <option value="0.80" selected>0.80 — Standard</option>
+              <option value="0.90">0.90 — hoch</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gewindedetails -->
+      <div class="sec">② Gewindeparameter</div>
+      <div class="crd" style="margin-bottom:20px">
+        <div class="dr"><span class="dk">Nenndurchmesser d</span><span class="dv" id="tq-d">–</span></div>
+        <div class="dr"><span class="dk">Steigung P</span><span class="dv" id="tq-p">–</span></div>
+        <div class="dr"><span class="dk">Flankendurchmesser d₂</span><span class="dv" id="tq-d2">–</span></div>
+        <div class="dr"><span class="dk">Kerndurchmesser d₃</span><span class="dv" id="tq-d3">–</span></div>
+        <div class="dr"><span class="dk">Spannungsquerschnitt A_s</span><span class="dv" id="tq-as">–</span></div>
+        <div class="dr"><span class="dk">Streckgrenze R_p0.2</span><span class="dv" id="tq-rp">–</span></div>
+        <div class="dr"><span class="dk">Reibungszahl μ</span><span class="dv" id="tq-mu">–</span></div>
+      </div>
+
+    </div>
+
+    <!-- ── Ergebnis ── -->
+    <div style="flex:1;min-width:280px">
+
+      <div class="sec">③ Ergebnis</div>
+      <!-- Grosse Ergebniskarten -->
+      <div class="res-grid" style="margin-bottom:14px">
+        <div class="rc" id="tq-rc-ma">
+          <div class="rl">Anzugsmoment M_A</div>
+          <div class="rv" id="tq-ma">–</div>
+          <div class="runit">N·m</div>
+        </div>
+        <div class="rc" id="tq-rc-fm">
+          <div class="rl">Vorspannkraft F_M</div>
+          <div class="rv" id="tq-fm">–</div>
+          <div class="runit">kN</div>
+        </div>
+      </div>
+
+      <!-- Detailaufschlüsselung -->
+      <div class="sec">④ Aufschlüsselung</div>
+      <div class="crd" style="margin-bottom:20px">
+        <div class="dr"><span class="dk">Gewindeanteil M_G</span><span class="dv" id="tq-mg">–</span></div>
+        <div class="dr"><span class="dk">Kopfreibungsanteil M_K</span><span class="dv" id="tq-mk">–</span></div>
+        <div class="dr"><span class="dk">Anzugsmoment M_A</span><span class="dv" id="tq-ma2">–</span></div>
+        <div class="dr"><span class="dk">Ausnutzung (Zugspannung)</span><span class="dv" id="tq-util">–</span></div>
+      </div>
+
+      <!-- Hinweis -->
+      <div class="formula-bar" id="tq-formula" style="display:none;margin-bottom:14px">
+        M_A = F_M · (0.16·P + 0.58·d₂·μ + 0.5·D_km·μ) &nbsp;·&nbsp; <span id="tq-formula-text"></span>
+      </div>
+
+      <div class="info-box" style="margin-bottom:8px">
+        ℹ️ &nbsp;Berechnung nach <b>VDI 2230</b>. Anzugsmoment gilt für metrisches ISO-Regelgewinde.
+        Kopfauflage angenommen: D_km = 1.4 · d (Sechskantkopf). Toleranzklasse 6H/6g.
+        Bei Edelstahl (A2/A4) Reibungszahl erhöhen oder Paste verwenden — Fressneigung beachten!
+      </div>
+
+    </div>
+  </div>
+</div>
+</div><!-- /tool-torque -->
+
+<!-- ══ TOOL: HYDRAULIKZYLINDER ════════════════════════════════════════════ -->
+<div id="tool-hydro" class="tool-panel">
+<div class="wrap">
+
+  <div class="legend">
+    <span class="li"><span class="ld-b"></span> Eingabe</span>
+    <span class="li"><span class="ld-g"></span> Ergebnis</span>
+  </div>
+
+  <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+
+    <!-- ── Links: Eingaben ── -->
+    <div style="flex:1;min-width:280px">
+
+      <div class="sec">① Eingaben</div>
+      <div class="crd" style="margin-bottom:20px">
+        <div class="ir">
+          <div class="il">Kolbendurchmesser <b>D</b></div>
+          <span class="iu">mm</span>
+          <input id="hy-D" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+        <div class="ir">
+          <div class="il">Stangendurchmesser <b>d</b><small>0 = einseitig wirkend</small></div>
+          <span class="iu">mm</span>
+          <input id="hy-d" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+        <div class="ir">
+          <div class="il">Betriebsdruck <b>p</b></div>
+          <span class="iu">bar</span>
+          <input id="hy-p" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+        <div class="ir">
+          <div class="il">Gegendruck <b>p₂</b><small>auf Ringseite beim Ausfahren</small></div>
+          <span class="iu">bar</span>
+          <input id="hy-p2" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+        <div class="ir">
+          <div class="il">Wirkungsgrad <b>η</b><small>Standard: 95 % (Industriezylinder)</small></div>
+          <span class="iu">%</span>
+          <input id="hy-eta" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+        <div class="ir">
+          <div class="il">Kolbengeschwindigkeit <b>v</b><small>für Volumenstrom & Leistung</small></div>
+          <span class="iu">m/s</span>
+          <input id="hy-v" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+      </div>
+
+      <!-- Flächen & Geometrie -->
+      <div class="sec">② Flächen &amp; Geometrie</div>
+      <div class="crd" style="margin-bottom:20px">
+        <div class="dr"><span class="dk">Kolbenfläche A_K</span><span class="dv" id="hy-AK">–</span></div>
+        <div class="dr"><span class="dk">Stangenfläche A_S</span><span class="dv" id="hy-AS">–</span></div>
+        <div class="dr"><span class="dk">Ringfläche A_R</span><span class="dv" id="hy-AR">–</span></div>
+        <div class="dr"><span class="dk">Flächenverhältnis φ = A_R / A_K</span><span class="dv" id="hy-phi">–</span></div>
+        <div class="dr"><span class="dk">D/d-Verhältnis</span><span class="dv" id="hy-ratio">–</span></div>
+      </div>
+
+    </div>
+
+    <!-- ── Rechts: Ergebnisse ── -->
+    <div style="flex:1;min-width:280px">
+
+      <!-- Grosse Karten -->
+      <div class="sec">③ Kräfte</div>
+      <div class="res-grid" style="margin-bottom:14px">
+        <div class="rc" id="hy-rc-fd">
+          <div class="rl">Druckkraft (Kolben)</div>
+          <div class="rv" id="hy-FD">–</div>
+          <div class="runit">kN</div>
+        </div>
+        <div class="rc" id="hy-rc-fz">
+          <div class="rl">Zugkraft (Ringfläche)</div>
+          <div class="rv" id="hy-FZ">–</div>
+          <div class="runit">kN</div>
+        </div>
+      </div>
+
+      <!-- Detail Kräfte -->
+      <div class="crd" style="margin-bottom:14px">
+        <div class="dr"><span class="dk">Druckkraft — Kolbenfläche A_K</span><span class="dv" id="hy-FDb">–</span></div>
+        <div class="dr"><span class="dk">Zugkraft — Ringfläche A_R</span><span class="dv" id="hy-FZb">–</span></div>
+        <div class="dr"><span class="dk">Kraftverhältnis F_D / F_Z</span><span class="dv" id="hy-frat">–</span></div>
+      </div>
+
+      <!-- Volumenstrom & Leistung -->
+      <div class="sec">④ Volumenstrom &amp; Leistung</div>
+      <div class="crd" style="margin-bottom:14px">
+        <div class="dr"><span class="dk">Volumenstrom Ausfahren Q_A</span><span class="dv" id="hy-QA">–</span></div>
+        <div class="dr"><span class="dk">Volumenstrom Einfahren Q_E</span><span class="dv" id="hy-QE">–</span></div>
+        <div class="dr"><span class="dk">Hydraulikleistung P_hyd</span><span class="dv" id="hy-Phyd">–</span></div>
+        <div class="dr"><span class="dk">Gegendruck-Anteil Druck</span><span class="dv" id="hy-Gd">–</span></div>
+        <div class="dr"><span class="dk">Gegendruck-Anteil Zug</span><span class="dv" id="hy-Gz">–</span></div>
+      </div>
+
+      <div class="info-box" style="margin-bottom:8px">
+        ℹ️ &nbsp;Formel: <b>F [N] = A [cm²] × p [bar] × 10</b> &nbsp;·&nbsp; 1 bar = 10 N/cm²<br>
+        Druckkraft = Kolbenfläche A_K (Ausfahren) &nbsp;·&nbsp; Zugkraft = Ringfläche A_R (Einfahren)
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Kennlinien-Diagramm -->
+  <div class="sec" style="margin-top:8px">⑤ Kennlinie — Kräfte über Betriebsdruck</div>
+  <div class="chart-card" style="margin-bottom:20px">
+    <div class="chart-title">Druck- und Zugkraft [kN] über Betriebsdruck [bar] · aktuelle Eingaben</div>
+    <canvas id="hy-chart" style="height:240px!important"></canvas>
+  </div>
+
+  <div class="hint" id="hy-hint">← Kolbendurchmesser, Druck und Wirkungsgrad eingeben</div>
+
+</div>
+</div><!-- /tool-hydro -->
+<!-- ══ TOOL: VOLUMEN & MASSE ══════════════════════════════════════════════ -->
+<div id="tool-volume" class="tool-panel">
+<div class="wrap">
+
+    <div>
+
+      <div class="legend">
+        <span class="li"><span class="ld-b"></span> Eingabe</span>
+        <span class="li"><span class="ld-g"></span> Ergebnis</span>
+      </div>
+
+      <button class="mat-pick-btn" id="vm-mat-btn" onclick="openMatModal('volume')">
+        <span>⬡</span>
+        <span class="mpb-label" id="vm-badge-name">← Werkstoff wählen</span>
+        <span class="mpb-rho" id="vm-badge-rho"></span>
+        <span class="mpb-arrow">▼</span>
+      </button>
+
+      <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+
+        <!-- ── Zylinder / Hohlzylinder ── -->
+        <div style="flex:1;min-width:260px">
+
+          <div class="sec">① Zylinder / Hohlzylinder</div>
+          <div class="crd" style="margin-bottom:8px">
+            <div class="ir">
+              <div class="il">Länge <b>L</b></div>
+              <span class="iu">mm</span>
+              <input id="vm-cL" type="text" inputmode="decimal" class="if empty" value="–">
+            </div>
+            <div class="ir" id="vm-cD-row">
+              <div class="il">Außendurchmesser <b>D</b></div>
+              <span class="iu">mm</span>
+              <input id="vm-cD" type="text" inputmode="decimal" class="if empty" value="–">
+            </div>
+            <div class="ir" id="vm-cd-row">
+              <div class="il">Innendurchmesser <b>d</b><small>leer = Vollzylinder</small></div>
+              <span class="iu">mm</span>
+              <input id="vm-cd" type="text" inputmode="decimal" class="if empty" value="–">
+            </div>
+            <div class="ir" id="vm-cs-row">
+              <div class="il">Wandstärke <b>s</b><small>s = (D − d) / 2</small></div>
+              <span class="iu">mm</span>
+              <input id="vm-cs" type="text" inputmode="decimal" class="if empty" value="–">
+            </div>
+          </div>
+
+          <div class="crd" style="margin-bottom:14px">
+            <div class="dr"><span class="dk">Querschnittsfläche A</span><span class="dv" id="vm-cA">–</span></div>
+            <div class="dr"><span class="dk">Mantelfläche A_M</span><span class="dv" id="vm-cAM">–</span></div>
+            <div class="dr"><span class="dk">Stirnfläche A_S (2×)</span><span class="dv" id="vm-cAS">–</span></div>
+            <div class="dr"><span class="dk">Gesamtoberfläche A_ges</span><span class="dv" id="vm-cAges">–</span></div>
+            <div class="dr"><span class="dk">Volumen V</span><span class="dv" id="vm-cV">–</span></div>
+            <div class="dr" style="background:rgba(55,86,35,0.04);border-left:3px solid var(--gd)">
+              <span class="dk" style="font-weight:700;color:var(--green)">Masse m</span>
+              <span class="dv" style="font-size:15px;color:var(--green)" id="vm-cM">–</span>
+            </div>
+          </div>
+
+          <div class="formula-bar" id="vm-cFormula" style="display:none;margin-bottom:8px">
+            V = π/4·(D²−d²)·L &nbsp;→&nbsp; <span id="vm-cFormulaText"></span>
+          </div>
+
+          <div class="info-box">
+            ℹ️ &nbsp;D = Außendurchmesser · d = Innendurchmesser · s = Wandstärke<br>
+            Beziehung: <b>D = d + 2·s</b> &nbsp;·&nbsp; Beliebige 2 von 3 eingeben — der dritte wird berechnet<br>
+            Vollzylinder: d und s leer lassen &nbsp;·&nbsp; Grüne Felder = automatisch berechnet
+          </div>
+        </div>
+
+        <!-- ── Rechteck / Rechteckrohr ── -->
+        <div style="flex:1;min-width:260px">
+
+          <div class="sec">② Rechteck / Rechteckrohr</div>
+          <div class="crd" style="margin-bottom:14px">
+            <div class="ir">
+              <div class="il">Länge <b>L</b></div>
+              <span class="iu">mm</span>
+              <input id="vm-rL" type="text" inputmode="decimal" class="if empty" value="–">
+            </div>
+            <div class="ir">
+              <div class="il">Breite <b>B</b></div>
+              <span class="iu">mm</span>
+              <input id="vm-rB" type="text" inputmode="decimal" class="if empty" value="–">
+            </div>
+            <div class="ir">
+              <div class="il">Höhe <b>H</b><small>0 = quadratisch (H = B)</small></div>
+              <span class="iu">mm</span>
+              <input id="vm-rH" type="text" inputmode="decimal" class="if empty" value="–">
+            </div>
+            <div class="ir">
+              <div class="il">Wandstärke <b>w</b><small>0 = Vollprofil</small></div>
+              <span class="iu">mm</span>
+              <input id="vm-rW" type="text" inputmode="decimal" class="if empty" value="–">
+            </div>
+          </div>
+
+          <div class="crd" style="margin-bottom:14px">
+            <div class="dr"><span class="dk">Querschnittsfläche A</span><span class="dv" id="vm-rA">–</span></div>
+            <div class="dr"><span class="dk">Mantelfläche A_M</span><span class="dv" id="vm-rAM">–</span></div>
+            <div class="dr"><span class="dk">Stirnfläche A_S (2×)</span><span class="dv" id="vm-rAS">–</span></div>
+            <div class="dr"><span class="dk">Gesamtoberfläche A_ges</span><span class="dv" id="vm-rAges">–</span></div>
+            <div class="dr"><span class="dk">Volumen V</span><span class="dv" id="vm-rV">–</span></div>
+            <div class="dr" style="background:rgba(55,86,35,0.04);border-left:3px solid var(--gd)">
+              <span class="dk" style="font-weight:700;color:var(--green)">Masse m</span>
+              <span class="dv" style="font-size:15px;color:var(--green)" id="vm-rM">–</span>
+            </div>
+          </div>
+
+          <div class="formula-bar" id="vm-rFormula" style="display:none;margin-bottom:4px">
+            V = B·H·L &nbsp;→&nbsp; <span id="vm-rFormulaText"></span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="info-box" style="margin-top:8px">
+        ℹ️ &nbsp;V_Zyl = π/4·(D²−d²)·L &nbsp;·&nbsp; V_Rect = (B·H − (B−2w)·(H−2w))·L &nbsp;·&nbsp; m = V·ρ
+      </div>
+
+    </div>
+  </div>
+</div>
+</div><!-- /tool-volume -->
+
+
+<!-- Modal Modellparameter -->
+<div class="mo" id="mo">
+  <div class="md">
+    <div class="md-hdr">
+      <h2>⚙ Modellparameter</h2>
+      <button class="md-close" id="mc">✕</button>
+    </div>
+    <div class="md-body">
+      <div class="pw-row" id="pg">
+        <input class="pw-inp" id="pwi" type="password" placeholder="Passwort eingeben…">
+        <button class="pw-btn" id="pwb">Entsperren</button>
+      </div>
+      <div class="pf" id="pf"></div>
+      <div class="ma" id="ma" style="display:none">
+        <button class="br" id="bres">↺ Standardwerte</button>
+        <button class="bs" id="bsav">✓ Speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCRIPTS ════════════════════════════════════════════════════════════ -->
+
+<!-- Tab navigation -->
+<script>
+document.querySelectorAll('.tab-btn:not(.disabled)').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tool-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const tool = btn.dataset.tool;
+    if (tool) {
+      const panel = document.getElementById('tool-' + tool);
+      if (panel) panel.classList.add('active');
+    }
+    if (tool === 'sheave') setTimeout(updateChart, 100);
+    if (tool === 'hydro')  setTimeout(calcHydro,   100);
+  });
+});
+</script>
+
+<!-- Wärmeausdehnung Script -->
+<script>
+
+let selMat = null;
+
+function fmtW(v,d=4){if(v===null||isNaN(v))return"–";if(v===0)return"0";if(Math.abs(v)>=1e5||(Math.abs(v)<0.0001&&v!==0))return v.toExponential(3);return parseFloat(v.toPrecision(d+1)).toString();}
+function alphaStr(a){return(a*1e6).toFixed(2)+" × 10⁻⁶ /K";}
+function setW(id,val){const el=document.getElementById(id);if(el)el.textContent=val;}
+
+
+
+function getVal(id){ const v=document.getElementById(id)?.value||""; return parseFloat(v.replace(",",".")); }
+
+function calcW(){
+  const T0  = getVal("inp-t0");
+  const T1  = getVal("inp-t1");
+  const L0  = getVal("inp-l0");
+  const Da0 = getVal("inp-da0");
+  const Di0 = getVal("inp-di0");
+  const clr = ids => ids.forEach(id => setW(id,"–"));
+
+  // ── Material ──
+  if(selMat){
+    document.getElementById("mat-badge").style.display="flex";
+    setW("badge-name", selMat.name);
+    document.getElementById("badge-alpha").textContent = "α = "+alphaStr(selMat.alpha);
+    setW("res-alpha", (selMat.alpha*1e6).toFixed(2));
+    document.getElementById("hint-text").style.display="none";
+  } else {
+    document.getElementById("mat-badge").style.display="none";
+    setW("res-alpha","–");
+    document.getElementById("hint-text").style.display="";
+  }
+
+  // ── ΔT ──
+  const dT = (!isNaN(T0) && !isNaN(T1)) ? T1-T0 : NaN;
+  setW("res-dt", isNaN(dT) ? "–" : fmtW(dT,4));
+
+  // Need both material and valid temperatures for geometry results
+  if(!selMat || isNaN(dT)){
+    document.getElementById("formula-bar").style.display="none";
+    clr(["res-dl-mm","res-dl-um","res-l1","res-dda-mm","res-dda-um","res-da1",
+         "res-ddi-mm","res-ddi-um","res-di1","res-t0","res-t1","res-bore-mm","res-bore-um"]);
+    return;
+  }
+
+  const a = selMat.alpha;
+
+  // ② Länge
+  if(!isNaN(L0) && L0>0){
+    const dL = a*L0*dT;
+    setW("res-dl-mm", fmtW(dL,4));
+    setW("res-l1",    fmtW(L0+dL,5));
+    document.getElementById("formula-bar").style.display="";
+    document.getElementById("formula-text").textContent =
+      `${(a*1e6).toFixed(2)}×10⁻⁶ × ${L0} mm × ${fmtW(dT,3)} °C = ${fmtW(dL,4)} mm`;
+  } else {
+    clr(["res-dl-mm","res-l1"]);
+    document.getElementById("formula-bar").style.display="none";
+  }
+
+  // ③ Außendurchmesser
+  if(!isNaN(Da0) && Da0>0){
+    const dDa = a*Da0*dT;
+    setW("res-dda-mm", fmtW(dDa,4));
+    setW("res-dda-um",  fmtW(dDa*1000,4));
+    setW("res-da1",    fmtW(Da0+dDa,5));
+  } else clr(["res-dda-mm","res-dda-um","res-da1"]);
+
+  // ④ Innendurchmesser
+  if(!isNaN(Di0) && Di0>0){
+    const dDi = a*Di0*dT;
+    setW("res-ddi-mm", fmtW(dDi,4));
+    setW("res-ddi-um",  fmtW(dDi*1000,4));
+    setW("res-di1",    fmtW(Di0+dDi,5));
+  } else clr(["res-ddi-mm","res-ddi-um","res-di1"]);
+
+  // ⑤ Wanddicke
+  if(!isNaN(Da0)&&!isNaN(Di0)&&Da0>0&&Di0>0&&Da0>Di0){
+    const t0  = (Da0-Di0)/2;
+    const Da1 = Da0+a*Da0*dT, Di1 = Di0+a*Di0*dT;
+    const bore = Di1-Di0;
+    setW("res-t0",      fmtW(t0,4));
+    setW("res-t1",      fmtW((Da1-Di1)/2,4));
+    setW("res-bore-mm", fmtW(bore,4));
+    setW("res-bore-um", fmtW(bore*1000,4));
+  } else clr(["res-t0","res-t1","res-bore-mm","res-bore-um"]);
+}
+
+
+// Dash-Felder: beim Fokus leeren, beim Verlassen wiederherstellen falls leer
+function initDashField(el) {
+  el.addEventListener("focus", () => {
+    if(el.value === "–"){ el.value = ""; el.classList.remove("empty"); }
+    el.select();
+  });
+  el.addEventListener("blur", () => {
+    if(el.value.trim() === ""){ el.value = "–"; el.classList.add("empty"); }
+  });
+  // Nur Zahlen/Dezimal zulassen, Rest blockieren
+  el.addEventListener("keypress", e => {
+    if(!/[\d.,\-]/.test(e.key) && !e.ctrlKey) e.preventDefault();
+  });
+}
+
+// Input → sofort berechnen; Enter → nächstes Feld fokussieren
+const WT_ORDER = ["inp-t0","inp-t1","inp-l0","inp-da0","inp-di0"];
+WT_ORDER.forEach((id, i) => {
+  const el = document.getElementById(id);
+  initDashField(el);
+  el.addEventListener("input", calcW);
+  el.addEventListener("keydown", e => {
+    if(e.key === "Enter"){
+      e.preventDefault();
+      el.blur();
+      const next = document.getElementById(WT_ORDER[i+1]);
+      if(next){ next.focus(); }
+    }
+  });
+});
+
+</script>
+
+<!-- Seilrollen Script -->
+<script>
+const DEFAULTS={pv_ref:3.2,exp_n:.45,exp_k:.45,C_therm:20,D_ref:460,T_max:80,T_U:20,k_r_R:1,k_r_F:.8,c_s_V:.07,c_s_H:.05,c_s_L:.045};
+const PM=[
+  {k:'pv_ref',l:'p·v_ref',u:'N/(mm·s)',d:'Referenz-Grenzwert'},
+  {k:'exp_n',l:'Exp. n',u:'–',d:'Kerntemp.-Exponent'},
+  {k:'exp_k',l:'Exp. k',u:'–',d:'p·v_max-Exponent'},
+  {k:'C_therm',l:'C_therm',u:'K·mm·s/N',d:'Thermische Konstante'},
+  {k:'D_ref',l:'D_ref',u:'mm',d:'Referenz-Durchmesser'},
+  {k:'T_max',l:'T_max',u:'°C',d:'Max. Kerntemperatur'},
+  {k:'T_U',l:'T_U',u:'°C',d:'Umgebungstemperatur'},
+  {k:'k_r_R',l:'k_r (R)',u:'–',d:'Rillenformfaktor Rund'},
+  {k:'k_r_F',l:'k_r (F)',u:'–',d:'Rillenformfaktor Flach'},
+  {k:'c_s_V',l:'c_s (V)',u:'–',d:'SER-Koeff. Verschlossen'},
+  {k:'c_s_H',l:'c_s (H)',u:'–',d:'SER-Koeff. Herkules'},
+  {k:'c_s_L',l:'c_s (L)',u:'–',d:'SER-Koeff. Litzenseil'},
+];
+let P={...DEFAULTS};
+try{const s=localStorage.getItem('srf_win');if(s)P=JSON.parse(s);}catch(e){}
+
+function calc(){
+  const D=parseFloat(document.getElementById('iD').value);
+  const d=parseFloat(document.getElementById('id').value);
+  const v=parseFloat(document.getElementById('iv').value);
+  const rl=document.getElementById('ir2').value;
+  const st=document.getElementById('is2').value;
+  if(!D||!d||!v||D<=0||d<=0||v<=0)return;
+  const kr=rl==='R'?P.k_r_R:P.k_r_F;
+  const cs={V:P.c_s_V,H:P.c_s_H,L:P.c_s_L}[st];
+  const Spv=P.pv_ref*Math.pow(D/P.D_ref,P.exp_k)*kr*D*d/(v*1000);
+  const Sser=cs*D*D*Math.pow(d,2/3)/Math.pow(v,1.2)/1000;
+  const Sz=Math.min(Spv,Sser);
+  const p=Sz*1000/(kr*D*d);
+  const Tk=P.T_U+P.C_therm*Math.pow(P.D_ref/D,P.exp_n)*p*v;
+  const ok=Tk<=P.T_max;
+  const mass=Spv<=Sser?'p·v-Modell':'SER';
+  document.getElementById('vS').textContent=Sz.toFixed(2);
+  document.getElementById('vT').textContent=Tk.toFixed(1);
+  document.getElementById('dpv').textContent=Spv.toFixed(2)+' kN';
+  document.getElementById('dser').textContent=Sser.toFixed(2)+' kN';
+  document.getElementById('dm').textContent=mass;
+  document.getElementById('dp').textContent=p.toFixed(4)+' N/mm²';
+  document.getElementById('dtm').textContent=P.T_max+' °C';
+  document.getElementById('cS').className='rc ok';
+  document.getElementById('vS').style.color='var(--green)';
+  document.getElementById('cT').className='rc '+(ok?'ok':'warn');
+  document.getElementById('vT').style.color=ok?'var(--green)':'var(--red)';
+  const s1=document.getElementById('s1');s1.textContent='✅ OK';s1.className='sb ok';
+  const s2=document.getElementById('s2');s2.textContent=ok?'✅ OK':'⚠ T_max überschritten';s2.className='sb '+(ok?'ok':'warn');
+}
+
+// Seilrollen: Input → berechnen; Enter → nächstes Feld
+const SR_ORDER = ['iD','id','iv'];
+SR_ORDER.forEach((id, i) => {
+  const el = document.getElementById(id);
+  if(!el) return;
+  initDashField(el);
+  ['input','change'].forEach(e => el.addEventListener(e, ()=>{calc();calcTC();}));
+  el.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      el.blur();
+      const next = document.getElementById(SR_ORDER[i+1]);
+      if(next){ next.focus(); }
+    }
+  });
+});
+// Dropdowns nur change-Event
+['ir2','is2'].forEach(i=>['input','change'].forEach(e=>document.getElementById(i).addEventListener(e,()=>{calc();calcTC();})));
+
+const mo=document.getElementById('mo');
+let ul=false;
+document.getElementById('fab').addEventListener('click',()=>{
+  mo.classList.add('open');
+  if(!ul){document.getElementById('pg').style.display='flex';document.getElementById('pf').classList.remove('ul');document.getElementById('ma').style.display='none';document.getElementById('pwi').value='';}
+});
+document.getElementById('mc').addEventListener('click',()=>mo.classList.remove('open'));
+mo.addEventListener('click',e=>{if(e.target===mo)mo.classList.remove('open');});
+document.getElementById('pwb').addEventListener('click',tryUl);
+document.getElementById('pwi').addEventListener('keydown',e=>{if(e.key==='Enter')tryUl();});
+function tryUl(){
+  if(document.getElementById('pwi').value==='iffets'){
+    ul=true;document.getElementById('pg').style.display='none';buildPF();
+    document.getElementById('pf').classList.add('ul');document.getElementById('ma').style.display='flex';
+  }else{const pi=document.getElementById('pwi');pi.style.borderColor='var(--red)';setTimeout(()=>pi.style.borderColor='',900);}
+}
+function buildPF(){
+  const pf=document.getElementById('pf');pf.innerHTML='';
+  PM.forEach(m=>{const r=document.createElement('div');r.className='pr';r.innerHTML=`<div style="flex:1"><div class="pn">${m.l}</div><div class="pd">${m.d}</div></div><span class="pu">${m.u}</span><input class="pv" data-k="${m.k}" type="number" step="any" value="${P[m.k]}">`;pf.appendChild(r);});
+}
+document.getElementById('bsav').addEventListener('click',()=>{
+  document.getElementById('pf').querySelectorAll('.pv').forEach(i=>{const v=parseFloat(i.value);if(!isNaN(v))P[i.dataset.k]=v;});
+  try{localStorage.setItem('srf_win',JSON.stringify(P));}catch(e){}
+  mo.classList.remove('open');calc();updateChart();
+});
+document.getElementById('bres').addEventListener('click',()=>{P={...DEFAULTS};buildPF();});
+
+function calcTC(){
+  const D=parseFloat(document.getElementById('iD').value);
+  const d=parseFloat(document.getElementById('id').value);
+  const v=parseFloat(document.getElementById('iv').value);
+  const rl=document.getElementById('ir2').value;
+  const S=parseFloat(document.getElementById('tcS').value);
+  const tEl=document.getElementById('tcT');
+  const stEl=document.getElementById('tcStat');
+  if(!D||!d||!v||!S||S<=0||D<=0||d<=0||v<=0){
+    if(tEl){tEl.textContent='–';tEl.className='tc-res-val neu';}
+    if(stEl){stEl.textContent='–';stEl.className='tc-status neu';}
+    return;
+  }
+  const kr=rl==='R'?P.k_r_R:P.k_r_F;
+  const p=S*1000/(kr*D*d);
+  const Tk=P.T_U+P.C_therm*Math.pow(P.D_ref/D,P.exp_n)*p*v;
+  const ok=Tk<=P.T_max;
+  if(tEl){tEl.textContent=Tk.toFixed(1);tEl.className='tc-res-val '+(ok?'ok':'warn');}
+  if(stEl){stEl.textContent=ok?'✅ OK':'⚠ T_max überschritten';stEl.className='tc-status '+(ok?'ok':'warn');}
+}
+document.getElementById('tcS').addEventListener('input',calcTC);
+document.getElementById('tcS').addEventListener('change',calcTC);
+calc();calcTC();
+</script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+let chartInst=null;
+function updateChart(){
+  const D=parseFloat(document.getElementById('iD').value);
+  const d=parseFloat(document.getElementById('id').value);
+  const rl=document.getElementById('ir2').value;
+  const st=document.getElementById('is2').value;
+  if(!D||!d||D<=0||d<=0)return;
+  const kr=rl==='R'?P.k_r_R:P.k_r_F;
+  const cs={V:P.c_s_V,H:P.c_s_H,L:P.c_s_L}[st];
+  const vArr=[],spvArr=[],sserArr=[],szulArr=[],tkernArr=[];
+  for(let vi=4.0;vi<=12.05;vi+=0.2){
+    const v=Math.round(vi*10)/10;
+    const Spv=P.pv_ref*Math.pow(D/P.D_ref,P.exp_k)*kr*D*d/(v*1000);
+    const Sser=cs*D*D*Math.pow(d,2/3)/Math.pow(v,1.2)/1000;
+    const Sz=Math.min(Spv,Sser);
+    const p=Sz*1000/(kr*D*d);
+    const Tk=P.T_U+P.C_therm*Math.pow(P.D_ref/D,P.exp_n)*p*v;
+    vArr.push(v.toFixed(1));spvArr.push(+Spv.toFixed(3));sserArr.push(+Sser.toFixed(3));szulArr.push(+Sz.toFixed(3));tkernArr.push(+Tk.toFixed(1));
+  }
+  const ctx=document.getElementById('chart').getContext('2d');
+  if(chartInst)chartInst.destroy();
+  chartInst=new Chart(ctx,{type:'line',data:{labels:vArr,datasets:[
+    {label:'S_zul [kN]',data:szulArr,borderColor:'#2E75B6',backgroundColor:'rgba(46,117,182,0.08)',borderWidth:2.5,pointRadius:0,fill:true,tension:0.3,yAxisID:'yS'},
+    {label:'T_max ('+P.T_max+' °C)',data:vArr.map(()=>P.T_max),borderColor:'rgba(82,183,136,0.6)',borderWidth:1.5,borderDash:[4,3],pointRadius:0,fill:false,tension:0,yAxisID:'yT'},
+    {label:'T_kern [°C]',data:tkernArr,borderColor:'#E63946',backgroundColor:'rgba(230,57,70,0.0)',borderWidth:1.8,borderDash:[5,3],pointRadius:0,fill:false,tension:0.3,yAxisID:'yT'},
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false,axis:'x'},
+  plugins:{legend:{position:'top',labels:{color:'#595959',font:{size:10,family:"'Barlow',sans-serif"},boxWidth:16,padding:12}},
+  tooltip:{backgroundColor:'rgba(31,56,100,0.92)',titleColor:'#E8F0F8',bodyColor:'#A8C4E0',titleFont:{size:10},bodyFont:{size:10},
+  callbacks:{title:items=>`v = ${items[0].label} m/s`,label:item=>item.dataset.yAxisID==='yT'?` ${item.dataset.label}: ${item.raw} °C`:` ${item.dataset.label}: ${item.raw} kN`}}},
+  scales:{x:{title:{display:true,text:'Geschwindigkeit v [m/s]',color:'#7A9BB5',font:{size:10,family:"'Barlow',sans-serif"}},
+  ticks:{color:'#595959',font:{size:10,family:"'Barlow',sans-serif"},maxRotation:0,autoSkip:false,callback:(val,i)=>{const v=parseFloat(vArr[i]);return Number.isInteger(v)?v+'':''}},
+  grid:{color:(ctx)=>Number.isInteger(parseFloat(vArr[ctx.index]))?'rgba(46,117,182,0.15)':'rgba(46,117,182,0.04)'},
+  border:{display:true,color:'rgba(46,117,182,0.3)',width:1}},
+  yS:{type:'linear',position:'left',title:{display:true,text:'S_zul [kN]',color:'#2E75B6',font:{size:10,family:"'Barlow',sans-serif"}},
+  ticks:{color:'#2E75B6',font:{size:10,family:"'Barlow',sans-serif"},callback:val=>val.toFixed(1)+' kN'},
+  grid:{color:'rgba(46,117,182,0.08)'},border:{display:true,color:'rgba(46,117,182,0.3)',width:1},beginAtZero:false},
+  yT:{type:'linear',position:'right',title:{display:true,text:'T_kern [°C]',color:'#E63946',font:{size:10,family:"'Barlow',sans-serif"}},
+  ticks:{color:'#E63946',font:{size:10,family:"'Barlow',sans-serif"},callback:val=>val.toFixed(0)+' °C'},
+  grid:{drawOnChartArea:false},border:{display:true,color:'rgba(230,57,70,0.3)',width:1},beginAtZero:false,
+  afterDataLimits(scale){scale.max=scale.max+2;scale.min=scale.min-2;}}}}});
+}
+['iD','id','iv','ir2','is2'].forEach(i=>{const el=document.getElementById(i);if(el){el.addEventListener('input',updateChart);el.addEventListener('change',updateChart);}});
+window.addEventListener('load',()=>setTimeout(updateChart,200));
+</script>
+
+<!-- ══ Hydraulikzylinder Script ══════════════════════════════════════════ -->
+<script>
+let hyChart = null;
+
+function getHY(id){ const v=document.getElementById(id)?.value||""; return parseFloat(v.replace(",",".")); }
+function setHY(id,val){ const el=document.getElementById(id); if(el) el.textContent=val; }
+function fmtHY(v,d=4){ if(v===null||isNaN(v))return"–"; return parseFloat(v.toPrecision(d)).toString(); }
+
+function calcHydro(){
+  const D   = getHY("hy-D");
+  const d   = getHY("hy-d");
+  const p   = getHY("hy-p");
+  const p2  = isNaN(getHY("hy-p2")) ? 0 : getHY("hy-p2");
+  const eta = isNaN(getHY("hy-eta")) ? 95 : getHY("hy-eta");
+  const v   = isNaN(getHY("hy-v"))   ? 0  : getHY("hy-v");
+
+  const hint = document.getElementById("hy-hint");
+  const ids_clr = ["hy-AK","hy-AS","hy-AR","hy-phi","hy-ratio",
+                   "hy-FD","hy-FZ","hy-FDb","hy-FZb","hy-frat",
+                   "hy-QA","hy-QE","hy-Phyd","hy-Gd","hy-Gz"];
+
+  if(isNaN(D) || D<=0 || isNaN(p) || p<=0){
+    ids_clr.forEach(id=>setHY(id,"–"));
+    hint.style.display="";
+    ["hy-rc-fd","hy-rc-fz"].forEach(id=>document.getElementById(id).classList.remove("ok"));
+    if(hyChart){ hyChart.destroy(); hyChart=null; }
+    return;
+  }
+  hint.style.display="none";
+
+  const e = eta/100;
+  const dSt = isNaN(d)||d<=0 ? 0 : d;
+
+  // Flächen [cm²]
+  const AK = Math.PI/4 * (D/10)**2;
+  const AS = Math.PI/4 * (dSt/10)**2;
+  const AR = AK - AS;
+  const phi = dSt>0 ? AR/AK : 1;
+  const ratio = dSt>0 ? D/dSt : "–";
+
+  setHY("hy-AK",  `${fmtHY(AK,5)} cm²`);
+  setHY("hy-AS",  dSt>0 ? `${fmtHY(AS,5)} cm²` : "–");
+  setHY("hy-AR",  dSt>0 ? `${fmtHY(AR,5)} cm²` : "–");
+  setHY("hy-phi", dSt>0 ? fmtHY(phi,4) : "–");
+  setHY("hy-ratio",dSt>0 ? fmtHY(D/dSt,4) : "–");
+
+  // Kräfte [N] — F = A[cm²] × p[bar] × 10
+  const G_d  = AR * p2 * 10;
+  const G_z  = AK * p2 * 10;
+  const FDb  = AK * p  * 10 * e;
+  const FZb  = AR * p  * 10 * e;
+
+  setHY("hy-FDb",  `${fmtHY(FDb,6)} N`);
+  setHY("hy-FZb",  dSt>0 ? `${fmtHY(FZb,6)} N` : "–");
+  setHY("hy-frat", dSt>0 ? fmtHY(FDb/FZb,4) : "–");
+  setHY("hy-Gd",   G_d>0 ? `${fmtHY(G_d,4)} N` : "0 N");
+  setHY("hy-Gz",   G_z>0 ? `${fmtHY(G_z,4)} N` : "0 N");
+
+  // Grosse Karten — brutto
+  document.getElementById("hy-FD").textContent = fmtHY(FDb/1000,4);
+  document.getElementById("hy-FZ").textContent = dSt>0 ? fmtHY(FZb/1000,4) : "–";
+  ["hy-rc-fd","hy-rc-fz"].forEach(id=>document.getElementById(id).classList.add("ok"));
+
+  // Volumenstrom [l/min] & Leistung [kW]
+  if(v>0){
+    const QA  = AK * v * 1000 * 60 / 1000;  // cm²×m/s → l/min: ×100²/1000×60 / 1000
+    const QAl = AK/10000 * v * 1000 * 60;   // m² × m/s = m³/s → ×1000 l/m³ × 60 s/min
+    const QEl = AR/10000 * v * 1000 * 60;
+    const Phyd = AK/10000 * p * 100000 * v / 1000; // kW: A[m²]×p[Pa]×v[m/s]/1000
+    setHY("hy-QA",   `${fmtHY(QAl,4)} l/min`);
+    setHY("hy-QE",   dSt>0 ? `${fmtHY(QEl,4)} l/min` : "–");
+    setHY("hy-Phyd", `${fmtHY(Phyd,4)} kW`);
+  } else {
+    setHY("hy-QA","– (v eingeben)");
+    setHY("hy-QE","– (v eingeben)");
+    setHY("hy-Phyd","– (v eingeben)");
+  }
+
+  // Kennliniendiagramm
+  buildHyChart(D, dSt, e, p2);
+}
+
+function buildHyChart(D, dSt, e, p2){
+  const pressures = [10,25,50,75,100,125,150,175,200,250,300,350,400];
+  const AK = Math.PI/4 * (D/10)**2;
+  const AR = AK - Math.PI/4 * (dSt/10)**2;
+
+  const FDb_arr = pressures.map(p => AK*p*10*e/1000);
+  const FZb_arr = pressures.map(p => dSt>0 ? AR*p*10*e/1000 : null);
+
+  const ctx = document.getElementById("hy-chart").getContext("2d");
+  if(hyChart) hyChart.destroy();
+
+  hyChart = new Chart(ctx, {
+    type:"line",
+    data:{
+      labels: pressures.map(p=>p+" bar"),
+      datasets:[
+        {label:"Druckkraft A_K [kN]", data:FDb_arr, borderColor:"#2E75B6", backgroundColor:"rgba(46,117,182,0.07)", borderWidth:2.5, pointRadius:3, fill:true, tension:0.3},
+        {label:"Zugkraft A_R [kN]",   data:FZb_arr, borderColor:"#375623", backgroundColor:"rgba(55,86,35,0.07)",   borderWidth:2.5, pointRadius:3, fill:true, tension:0.3},
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:"index", intersect:false},
+      plugins:{
+        legend:{position:"top", labels:{color:"#595959", font:{size:10,family:"'Barlow',sans-serif"}, boxWidth:14, padding:10}},
+        tooltip:{backgroundColor:"rgba(31,56,100,0.92)", titleColor:"#E8F0F8", bodyColor:"#A8C4E0",
+          titleFont:{size:10}, bodyFont:{size:10},
+          callbacks:{label: i=>`  ${i.dataset.label}: ${i.raw!==null ? i.raw.toFixed(2)+' kN' : '–'}`}}
+      },
+      scales:{
+        x:{ticks:{color:"#595959",font:{size:10,family:"'Barlow',sans-serif"}}, grid:{color:"rgba(46,117,182,0.08)"}, border:{color:"rgba(46,117,182,0.3)"}},
+        y:{title:{display:true,text:"Kraft [kN]",color:"#7A9BB5",font:{size:10,family:"'Barlow',sans-serif"}},
+           ticks:{color:"#595959",font:{size:10},callback:v=>v.toFixed(0)+" kN"},
+           grid:{color:"rgba(46,117,182,0.08)"}, border:{color:"rgba(46,117,182,0.3)"}, beginAtZero:true}
+      }
+    }
+  });
+}
+
+// Enter-Navigation
+const HY_ORDER = ["hy-D","hy-d","hy-p","hy-p2","hy-eta","hy-v"];
+HY_ORDER.forEach((id,i)=>{
+  const el = document.getElementById(id);
+  if(!el) return;
+  initDashField(el);
+  el.addEventListener("input", calcHydro);
+  el.addEventListener("keydown", e=>{
+    if(e.key==="Enter"){
+      e.preventDefault(); el.blur();
+      const next = document.getElementById(HY_ORDER[i+1]);
+      if(next) next.focus();
+    }
+  });
+});
+</script>
+
+<!-- ══ Volumen & Masse Script ═════════════════════════════════════════════ -->
+<script>
+
+// Sidebar aufbauen
+let vmSelMat = null;
+
+
+
+
+
+function getVMRaw(id){ const v=document.getElementById(id)?.value||""; if(v==="–"||v.trim()==="")return null; const n=parseFloat(v.replace(",",".")); return isNaN(n)?null:n; }
+function getVM(id){ const v=getVMRaw(id); return (v===null||v<=0)?0:v; }
+function setVM(id,val){ const el=document.getElementById(id); if(el) el.textContent=val; }
+function fmtVM(v,d=4){ if(v===null||isNaN(v)||v===0)return"–"; return parseFloat(v.toPrecision(d)).toString(); }
+
+// Set a field as auto-calculated (green) or manual (blue)
+function setVMInput(id, value, isAuto){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(isAuto){
+    el.value = fmtVM(value, 5);
+    el.classList.remove("empty");
+    el.classList.add("auto");
+  } else {
+    el.classList.remove("auto");
+  }
+}
+function clearVMInput(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(el.classList.contains("auto")){
+    el.value = "–";
+    el.classList.remove("auto");
+    el.classList.add("empty");
+  }
+}
+
+function calcVolume(){
+  const rho = vmSelMat?.rho;
+  const hasRho = rho !== undefined && rho > 0;
+
+  // ── Zylinder: 3-Wege D / d / s ──
+  const cL  = getVM("vm-cL");
+  const rawD = getVMRaw("vm-cD");
+  const rawd = getVMRaw("vm-cd");
+  const raws = getVMRaw("vm-cs");
+
+  // Count how many of D, d, s are filled manually (not auto)
+  const elD = document.getElementById("vm-cD");
+  const eld = document.getElementById("vm-cd");
+  const els = document.getElementById("vm-cs");
+
+  const hasD = rawD !== null && !elD.classList.contains("auto");
+  const hasd = rawd !== null && !eld.classList.contains("auto");
+  const hass = raws !== null && !els.classList.contains("auto");
+
+  let cD = rawD, cd = rawd, cs = raws;
+
+  // Resolve missing value from the other two
+  if(hasD && hasd && !hass){
+    cs = (rawD - rawd) / 2;
+    setVMInput("vm-cs", cs, true);
+  } else if(hasD && hass && !hasd){
+    cd = rawD - 2 * raws;
+    if(cd < 0) cd = 0;
+    setVMInput("vm-cd", cd, true);
+  } else if(hasd && hass && !hasD){
+    cD = rawd + 2 * raws;
+    setVMInput("vm-cD", cD, true);
+  } else {
+    // If all 3 are manual or only 1 filled — just clear auto fields
+    if(!hasD) clearVMInput("vm-cD");
+    if(!hasd) clearVMInput("vm-cd");
+    if(!hass) clearVMInput("vm-cs");
+    cD = rawD; cd = rawd; cs = raws;
+  }
+
+  // Now calculate geometry
+  if(cL>0 && cD>0){
+    const di   = (cd !== null && cd > 0 && cd < cD) ? cd : 0;
+    const cA   = Math.PI/4 * (cD**2 - di**2);
+    const cAM  = Math.PI * cD * cL;
+    const cAS  = 2 * cA;
+    const cAges= cAM + cAS + (di>0 ? Math.PI*di*cL : 0);
+    const cV   = cA * cL / 1e6;
+    const cM   = hasRho ? cV * rho : null;
+
+    setVM("vm-cA",    `${fmtVM(cA,5)} mm²`);
+    setVM("vm-cAM",   `${fmtVM(cAM,5)} mm²`);
+    setVM("vm-cAS",   `${fmtVM(cAS,5)} mm²`);
+    setVM("vm-cAges", `${fmtVM(cAges,5)} mm²`);
+    setVM("vm-cV",    `${fmtVM(cV,5)} dm³  /  ${fmtVM(cV*1000,5)} cm³`);
+    setVM("vm-cM",    cM!==null ? `${fmtVM(cM,5)} kg` : "– (Material wählen)");
+    document.getElementById("vm-cFormula").style.display = "";
+    document.getElementById("vm-cFormulaText").textContent =
+      `π/4·(${cD}²${di>0?`−${di}²`:""})·${cL} = ${fmtVM(cV,5)} dm³${cM!==null ? `  →  ${fmtVM(cM,5)} kg`:""}`;
+  } else {
+    ["vm-cA","vm-cAM","vm-cAS","vm-cAges","vm-cV","vm-cM"].forEach(id=>setVM(id,"–"));
+    document.getElementById("vm-cFormula").style.display="none";
+  }
+
+  // ── Rechteck ──
+  const rL = getVM("vm-rL"), rB = getVM("vm-rB");
+  let   rH = getVM("vm-rH"); if(rH===0) rH = rB;   // 0 = quadratisch
+  const rW = getVM("vm-rW");
+
+  if(rL>0 && rB>0){
+    let rA, rAM, rAS, rAges;
+    if(rW>0 && 2*rW<rB && 2*rW<rH){
+      // Hohlprofil
+      const Bi = rB - 2*rW, Hi = rH - 2*rW;
+      rA    = rB*rH - Bi*Hi;
+      rAM   = 2*(rB+rH)*rL;
+      rAS   = 2*rA;
+      rAges = rAM + rAS;
+    } else {
+      // Vollprofil
+      rA    = rB * rH;
+      rAM   = 2*(rB+rH)*rL;
+      rAS   = 2*rA;
+      rAges = rAM + rAS;
+    }
+    const rV  = rA * rL / 1e6;   // dm³
+    const rM  = hasRho ? rV * rho : null;
+
+    setVM("vm-rA",    `${fmtVM(rA,5)} mm²`);
+    setVM("vm-rAM",   `${fmtVM(rAM,5)} mm²`);
+    setVM("vm-rAS",   `${fmtVM(rAS,5)} mm²`);
+    setVM("vm-rAges", `${fmtVM(rAges,5)} mm²`);
+    setVM("vm-rV",    `${fmtVM(rV,5)} dm³  /  ${fmtVM(rV*1000,5)} cm³`);
+    setVM("vm-rM",    rM!==null ? `${fmtVM(rM,5)} kg` : "– (Material wählen)");
+    document.getElementById("vm-rFormula").style.display = "";
+    document.getElementById("vm-rFormulaText").textContent =
+      `${rB}×${rH}${rW>0?` (w=${rW})`:""} × ${rL} = ${fmtVM(rV,5)} dm³${rM!==null ? `  →  ${fmtVM(rM,5)} kg`:""}`;
+  } else {
+    ["vm-rA","vm-rAM","vm-rAS","vm-rAges","vm-rV","vm-rM"].forEach(id=>setVM(id,"–"));
+    document.getElementById("vm-rFormula").style.display="none";
+  }
+}
+
+// Cylinder D/d/s: remove auto class when user starts typing manually
+["vm-cD","vm-cd","vm-cs"].forEach(id => {
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.addEventListener("focus", () => {
+    if(el.classList.contains("auto")){
+      el.value = "–";
+      el.classList.remove("auto");
+      el.classList.add("empty");
+    }
+  });
+});
+
+// Eingabefelder mit Enter-Navigation
+const VM_C_ORDER = ["vm-cL","vm-cD","vm-cd","vm-cs"];
+const VM_R_ORDER = ["vm-rL","vm-rB","vm-rH","vm-rW"];
+[...VM_C_ORDER, ...VM_R_ORDER].forEach((id, i, arr) => {
+  const el = document.getElementById(id);
+  if(!el) return;
+  initDashField(el);
+  el.addEventListener("input", calcVolume);
+  el.addEventListener("keydown", e => {
+    if(e.key==="Enter"){
+      e.preventDefault(); el.blur();
+      const next = document.getElementById(arr[i+1]);
+      if(next) next.focus();
+    }
+  });
+});
+</script>
+
+<!-- ══ Anzugsmoment Script ════════════════════════════════════════════════ -->
+<script>
+// ── Gewindetabelle ISO 68-1 / DIN 13 ─────────────────────────────────────
+// d=Nenndurchmesser, P=Steigung, d2=Flankendm., d3=Kerndm., As=Spannungsquerschnitt [mm²]
+const THREADS = [
+  {name:"M3",    d:3,   P:0.5,  d2:2.675, d3:2.387, As:5.03},
+  {name:"M4",    d:4,   P:0.7,  d2:3.545, d3:3.141, As:8.78},
+  {name:"M5",    d:5,   P:0.8,  d2:4.480, d3:4.019, As:14.2},
+  {name:"M6",    d:6,   P:1.0,  d2:5.350, d3:4.773, As:20.1},
+  {name:"M8",    d:8,   P:1.25, d2:7.188, d3:6.466, As:36.6},
+  {name:"M10",   d:10,  P:1.5,  d2:9.026, d3:8.160, As:58.0},
+  {name:"M12",   d:12,  P:1.75, d2:10.86, d3:9.853, As:84.3},
+  {name:"M14",   d:14,  P:2.0,  d2:12.70, d3:11.55, As:115},
+  {name:"M16",   d:16,  P:2.0,  d2:14.70, d3:13.55, As:157},
+  {name:"M18",   d:18,  P:2.5,  d2:16.38, d3:14.93, As:192},
+  {name:"M20",   d:20,  P:2.5,  d2:18.38, d3:16.93, As:245},
+  {name:"M22",   d:22,  P:2.5,  d2:20.38, d3:18.93, As:303},
+  {name:"M24",   d:24,  P:3.0,  d2:22.05, d3:20.32, As:353},
+  {name:"M27",   d:27,  P:3.0,  d2:25.05, d3:23.32, As:459},
+  {name:"M30",   d:30,  P:3.5,  d2:27.73, d3:25.71, As:561},
+  {name:"M33",   d:33,  P:3.5,  d2:30.73, d3:28.71, As:694},
+  {name:"M36",   d:36,  P:4.0,  d2:33.40, d3:31.09, As:817},
+  {name:"M39",   d:39,  P:4.0,  d2:36.40, d3:34.09, As:976},
+  {name:"M42",   d:42,  P:4.5,  d2:39.08, d3:36.48, As:1121},
+  {name:"M48",   d:48,  P:5.0,  d2:44.75, d3:41.87, As:1473},
+  {name:"M52",   d:52,  P:5.0,  d2:48.75, d3:45.87, As:1758},
+  {name:"M56",   d:56,  P:5.5,  d2:52.43, d3:49.25, As:2030},
+  {name:"M64",   d:64,  P:6.0,  d2:60.10, d3:56.64, As:2676},
+  // Feingewinde
+  {name:"M8×1",  d:8,   P:1.0,  d2:7.350, d3:6.773, As:39.2},
+  {name:"M10×1", d:10,  P:1.0,  d2:9.350, d3:8.773, As:64.5},
+  {name:"M10×1.25",d:10,P:1.25, d2:9.188, d3:8.466, As:61.2},
+  {name:"M12×1.25",d:12,P:1.25, d2:11.19, d3:10.47, As:92.1},
+  {name:"M12×1.5",d:12, P:1.5,  d2:11.03, d3:10.16, As:88.1},
+  {name:"M14×1.5",d:14, P:1.5,  d2:13.03, d3:12.16, As:125},
+  {name:"M16×1.5",d:16, P:1.5,  d2:15.03, d3:14.16, As:167},
+  {name:"M18×1.5",d:18, P:1.5,  d2:17.03, d3:16.16, As:216},
+  {name:"M20×1.5",d:20, P:1.5,  d2:19.03, d3:18.16, As:272},
+  {name:"M24×2", d:24,  P:2.0,  d2:22.70, d3:21.55, As:384},
+];
+
+// ── Festigkeitsklassen (Rp0.2 in N/mm²) nach ISO 898-1 ───────────────────
+const GRADES = {
+  "4.6":  {Rp: 240,  Rm: 400},
+  "5.6":  {Rp: 300,  Rm: 500},
+  "6.8":  {Rp: 480,  Rm: 600},
+  "8.8":  {Rp: 660,  Rm: 800},
+  "10.9": {Rp: 940,  Rm: 1040},
+  "12.9": {Rp: 1100, Rm: 1220},
+};
+
+// ── Reibungszahlen ────────────────────────────────────────────────────────
+const LUBE = {
+  dry:   {mu: 0.14, label: "Trocken"},
+  light: {mu: 0.12, label: "Leicht geölt"},
+  oiled: {mu: 0.10, label: "Geölt"},
+  moly:  {mu: 0.08, label: "MoS₂ / Paste"},
+};
+
+// ── Dropdown befüllen ─────────────────────────────────────────────────────
+const tqSel = document.getElementById("tq-thread");
+THREADS.forEach((t, i) => {
+  const o = document.createElement("option");
+  o.value = i;
+  o.textContent = t.name;
+  // Separator vor Feingewinde
+  if(t.name.includes("×") && !THREADS[i-1]?.name.includes("×")){
+    const sep = document.createElement("option");
+    sep.disabled = true;
+    sep.textContent = "── Feingewinde ──";
+    tqSel.appendChild(sep);
+  }
+  tqSel.appendChild(o);
+});
+
+// ── Hilfsfunktionen ───────────────────────────────────────────────────────
+function fmtTQ(v, d=3){
+  if(v===null||isNaN(v)) return "–";
+  return parseFloat(v.toPrecision(d)).toString();
+}
+function setTQ(id, val){ const el=document.getElementById(id); if(el) el.textContent=val; }
+
+// ── Berechnung VDI 2230 ───────────────────────────────────────────────────
+function calcTorque(){
+  const ti    = parseInt(document.getElementById("tq-thread").value);
+  const grade = document.getElementById("tq-grade").value;
+  const lube  = document.getElementById("tq-lube").value;
+  const alphaA= parseFloat(document.getElementById("tq-alpha").value);
+
+  // Reset
+  ["tq-ma","tq-fm","tq-mg","tq-mk","tq-ma2","tq-util"].forEach(id=>setTQ(id,"–"));
+  ["tq-d","tq-p","tq-d2","tq-d3","tq-as","tq-rp","tq-mu"].forEach(id=>setTQ(id,"–"));
+  document.getElementById("tq-formula").style.display="none";
+  document.getElementById("tq-rc-ma").classList.remove("ok");
+  document.getElementById("tq-rc-fm").classList.remove("ok");
+
+  if(isNaN(ti) || !grade || !lube) return;
+
+  const t   = THREADS[ti];
+  const g   = GRADES[grade];
+  const mu  = LUBE[lube].mu;
+
+  // Gewindeparameter
+  const d    = t.d;
+  const P    = t.P;
+  const d2   = t.d2;
+  const d3   = t.d3;
+  const As   = t.As;
+  const Rp   = g.Rp;
+
+  // Kopfauflagendurchmesser D_km (Sechskantkopf ~ 1.4 × d)
+  const Dkm  = 1.4 * d;
+
+  // Vorspannkraft F_M (VDI 2230 Gl. 5.4/5.5)
+  // Ausnutzungsgrad: σ_zul = αA · Rp / sqrt(1 + 3·(τ/σ)²)
+  // vereinfacht mit Torsionsanteil:
+  const phi  = Math.atan(P / (Math.PI * d2));          // Steigungswinkel
+  const rho  = Math.atan(mu / Math.cos(30 * Math.PI/180)); // Reibungswinkel Flanke
+  // Torsionsspannung beim Anziehen relativ zur Zugspannung:
+  const kappa = (0.5 * d2 * Math.tan(phi + rho)) / (d3 / 2);
+  const FM   = alphaA * Rp * As / Math.sqrt(1 + 3 * kappa * kappa);  // [N]
+
+  // Anzugsmoment M_A = Gewindeanteil + Kopfreibung
+  const MG   = FM * 0.5 * d2 * Math.tan(phi + rho);   // [N·mm]
+  const MK   = FM * 0.5 * mu * Dkm;                    // [N·mm]
+  const MA   = MG + MK;                                 // [N·mm]
+
+  // Tatsächliche Zugspannung
+  const sigma = FM / As;
+  const util  = (sigma / Rp * 100).toFixed(1);
+
+  // Anzeige — Parameter
+  setTQ("tq-d",  `${d} mm`);
+  setTQ("tq-p",  `${P} mm`);
+  setTQ("tq-d2", `${d2} mm`);
+  setTQ("tq-d3", `${d3} mm`);
+  setTQ("tq-as", `${As} mm²`);
+  setTQ("tq-rp", `${Rp} N/mm²`);
+  setTQ("tq-mu", `${mu.toFixed(2)}`);
+
+  // Ergebnisse
+  const MA_Nm = MA / 1000;
+  const FM_kN = FM / 1000;
+
+  setTQ("tq-ma",   fmtTQ(MA_Nm, 4));
+  setTQ("tq-fm",   fmtTQ(FM_kN, 4));
+  setTQ("tq-mg",   `${fmtTQ(MG/1000, 4)} N·m`);
+  setTQ("tq-mk",   `${fmtTQ(MK/1000, 4)} N·m`);
+  setTQ("tq-ma2",  `${fmtTQ(MA_Nm, 4)} N·m`);
+  setTQ("tq-util", `${util} %`);
+
+  document.getElementById("tq-rc-ma").classList.add("ok");
+  document.getElementById("tq-rc-fm").classList.add("ok");
+  document.getElementById("tq-formula").style.display="";
+  document.getElementById("tq-formula-text").textContent =
+    `F_M = ${fmtTQ(FM_kN,4)} kN  →  M_A = ${fmtTQ(MA_Nm,4)} N·m`;
+}
+
+["tq-thread","tq-grade","tq-lube","tq-alpha"].forEach(id =>
+  document.getElementById(id).addEventListener("change", calcTorque)
+);
+</script>
+
+
+<!-- ══ Material Modal ════════════════════════════════════════════════════ -->
+<div class="mat-modal-overlay" id="mat-modal">
+  <div class="mat-modal-box">
+    <div class="mat-modal-hdr">
+      <h3>⬡ &nbsp;Materialdatenbank</h3>
+      <button class="mat-modal-close" id="mat-modal-close">✕</button>
+    </div>
+    <div class="mat-modal-search">
+      <span style="color:var(--muted);font-size:16px">⌕</span>
+      <input id="mat-modal-search" type="text" placeholder="Material suchen …">
+    </div>
+    <div class="mat-modal-list" id="mat-modal-list"></div>
+  </div>
+</div>
+<!-- ══ Material Modal Script ═════════════════════════════════════════════ -->
+<script>
+// Central material database for modal (combines thermal + volume)
+const MODAL_MATERIALS = [
+  {group:"Eisenwerkstoffe", items:[
+    {name:"Stahl (unlegiert)",      alpha:12e-6,  rho:7.85},
+    {name:"Stahl (legiert)",        alpha:11e-6,  rho:7.85},
+    {name:"Edelstahl (V2A 1.4301)", alpha:16e-6,  rho:7.9 },
+    {name:"Edelstahl (V4A 1.4401)", alpha:16e-6,  rho:8.0 },
+    {name:"Gusseisen (GG-25)",      alpha:11e-6,  rho:7.25},
+    {name:"Stahlguss",              alpha:11e-6,  rho:7.8 },
+  ]},
+  {group:"Nichteisenmetalle", items:[
+    {name:"Aluminium (rein)",         alpha:24e-6,  rho:2.7 },
+    {name:"AlMgSi (6060)",            alpha:23e-6,  rho:2.7 },
+    {name:"Kupfer (Cu, rein)",        alpha:17e-6,  rho:8.96},
+    {name:"Messing (CuZn37)",         alpha:20e-6,  rho:8.44},
+    {name:"Messing (CuZn20)",         alpha:18e-6,  rho:8.7 },
+    {name:"Bronze (CuSn8)",           alpha:18e-6,  rho:8.8 },
+    {name:"Rotguss (CuSn5Zn5)",       alpha:18e-6,  rho:8.8 },
+    {name:"Zink (Zn)",                alpha:30e-6,  rho:7.13},
+    {name:"Titan (Gr. 2)",            alpha:9e-6,   rho:4.51},
+    {name:"Titan (Gr. 5 / Ti6Al4V)", alpha:9.2e-6, rho:4.43},
+    {name:"Magnesium (Mg)",           alpha:26e-6,  rho:1.74},
+    {name:"Blei (Pb)",                alpha:29e-6,  rho:11.3},
+    {name:"Nickel (Ni)",              alpha:13e-6,  rho:8.9 },
+    {name:"Zinn (Sn)",                alpha:23e-6,  rho:7.29},
+    {name:"Chrom (Cr)",               alpha:8.5e-6, rho:7.2 },
+    {name:"Cobalt (Co)",              alpha:12e-6,  rho:8.9 },
+  ]},
+  {group:"Edelmetalle", items:[
+    {name:"Silber (Ag)",   alpha:19e-6,  rho:10.5 },
+    {name:"Gold (Au)",     alpha:14e-6,  rho:19.3 },
+    {name:"Platin (Pt)",   alpha:9e-6,   rho:21.45},
+    {name:"Wolfram (W)",   alpha:4.5e-6, rho:19.25},
+    {name:"Molybdän (Mo)", alpha:5e-6,   rho:10.2 },
+  ]},
+  {group:"Kunststoffe", items:[
+    {name:"Polyethylen (PE-HD)",  alpha:150e-6, rho:0.95},
+    {name:"Polyethylen (PE-LD)",  alpha:200e-6, rho:0.92},
+    {name:"Polypropylen (PP)",    alpha:150e-6, rho:0.91},
+    {name:"PVC (hart)",           alpha:80e-6,  rho:1.4 },
+    {name:"PVC (weich)",          alpha:200e-6, rho:1.3 },
+    {name:"PTFE (Teflon)",        alpha:120e-6, rho:2.2 },
+    {name:"Polycarbonat (PC)",    alpha:65e-6,  rho:1.2 },
+    {name:"Acrylglas (PMMA)",     alpha:70e-6,  rho:1.19},
+    {name:"Polyamid (PA6)",       alpha:80e-6,  rho:1.14},
+    {name:"Polyamid (PA12)",      alpha:100e-6, rho:1.02},
+    {name:"Polyamid (PA66)",      alpha:80e-6,  rho:1.14},
+    {name:"Polystyrol (PS)",      alpha:70e-6,  rho:1.05},
+    {name:"POM (Delrin)",         alpha:110e-6, rho:1.42},
+    {name:"ABS",                  alpha:90e-6,  rho:1.05},
+    {name:"Epoxidharz (EP)",      alpha:60e-6,  rho:1.25},
+    {name:"Phenolharz (PF)",      alpha:60e-6,  rho:1.3 },
+    {name:"PEEK",                 alpha:50e-6,  rho:1.32},
+  ]},
+  {group:"Baustoffe & Sonstige", items:[
+    {name:"Glas (Kalk-Natron)",        alpha:9e-6,    rho:2.5 },
+    {name:"Quarzglas",                 alpha:0.55e-6, rho:2.2 },
+    {name:"Beton",                     alpha:10e-6,   rho:2.3 },
+    {name:"Stahlbeton",                alpha:12e-6,   rho:2.5 },
+    {name:"Granit",                    alpha:8e-6,    rho:2.7 },
+    {name:"Marmor",                    alpha:7e-6,    rho:2.72},
+    {name:"Ziegel",                    alpha:5e-6,    rho:1.8 },
+    {name:"Holz (Fichte, längs)",      alpha:3.5e-6,  rho:0.47},
+    {name:"Holz (Eiche, längs)",       alpha:4.5e-6,  rho:0.72},
+    {name:"Kohlefaser-Verbund (CFK)",  alpha:0.2e-6,  rho:1.6 },
+    {name:"Glasfaser-Verbund (GFK)",   alpha:20e-6,   rho:1.8 },
+  ]},
+];
+
+let modalContext = null; // 'thermal' | 'volume'
+
+function openMatModal(ctx){
+  modalContext = ctx;
+  document.getElementById("mat-modal-search").value = "";
+  buildModalList("");
+  document.getElementById("mat-modal").classList.add("open");
+  setTimeout(()=>document.getElementById("mat-modal-search").focus(), 100);
+}
+
+function closeMatModal(){
+  document.getElementById("mat-modal").classList.remove("open");
+  modalContext = null;
+}
+
+document.getElementById("mat-modal-close").addEventListener("click", closeMatModal);
+document.getElementById("mat-modal").addEventListener("click", e => {
+  if(e.target === document.getElementById("mat-modal")) closeMatModal();
+});
+document.getElementById("mat-modal-search").addEventListener("input", e => buildModalList(e.target.value));
+
+function buildModalList(filter){
+  const q = filter.toLowerCase();
+  const container = document.getElementById("mat-modal-list");
+  // preserve open state
+  const openState = {};
+  container.querySelectorAll(".cat-btn").forEach(b => { openState[b.dataset.gi] = b.classList.contains("open"); });
+  container.innerHTML = "";
+
+  // Get current selection for highlighting
+  const curName = modalContext === 'thermal' ? selMat?.name : vmSelMat?.name;
+
+  MODAL_MATERIALS.forEach((grp, gi) => {
+    const items = grp.items.filter(m => m.name.toLowerCase().includes(q));
+    if(!items.length) return;
+    const isOpen = filter ? true : (openState[gi] === true);
+
+    const hdr = document.createElement("button");
+    hdr.className = "cat-btn" + (isOpen ? " open" : "");
+    hdr.dataset.gi = gi;
+    hdr.innerHTML = `<span>${grp.group}</span><span class="cat-arrow">${isOpen?"▲":"▼"}</span>`;
+    const div = document.createElement("div");
+    div.className = "cat-items" + (isOpen ? " open" : "");
+    hdr.addEventListener("click", () => {
+      hdr.classList.toggle("open");
+      hdr.querySelector(".cat-arrow").textContent = hdr.classList.contains("open") ? "▲" : "▼";
+      div.classList.toggle("open");
+    });
+
+    items.forEach(m => {
+      const btn = document.createElement("button");
+      btn.className = "mat-btn" + (m.name === curName ? " selected" : "");
+      // Show relevant info based on context
+      const sub = modalContext === 'volume'
+        ? `ρ = ${m.rho} kg/dm³`
+        : `α = ${(m.alpha*1e6).toFixed(2)} × 10⁻⁶ /K`;
+      btn.innerHTML = `<span class="mat-name">${m.name}</span><span class="mat-alpha-val">${sub}</span>`;
+
+      btn.addEventListener("click", () => {
+        if(modalContext === 'thermal'){
+          selMat = m;
+          // Update thermal button
+          document.getElementById("badge-name").textContent = m.name;
+          document.getElementById("badge-alpha").textContent = `α = ${(m.alpha*1e6).toFixed(2)} × 10⁻⁶ /K`;
+          calcW();
+        } else if(modalContext === 'volume'){
+          vmSelMat = m;
+          // Update volume button
+          document.getElementById("vm-badge-name").textContent = m.name;
+          document.getElementById("vm-badge-rho").textContent = `ρ = ${m.rho} kg/dm³`;
+          calcVolume();
+        }
+        closeMatModal();
+      });
+      div.appendChild(btn);
+    });
+    container.appendChild(hdr);
+    container.appendChild(div);
+  });
+}
+</script>
+
+
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}
+</script>
+<!-- Fullscreen -->
+<script>
+function enterFS(){
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+  if(req) req.call(el).catch(()=>{});
+}
+function exitFS(){
+  const ex = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+  if(ex) ex.call(document).catch(()=>{});
+}
+function isFS(){
+  return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+}
+const fsBtn = document.getElementById('fs-btn');
+fsBtn.addEventListener('click', () => { isFS() ? exitFS() : enterFS(); });
+document.addEventListener('fullscreenchange',     updateFsBtn);
+document.addEventListener('webkitfullscreenchange', updateFsBtn);
+function updateFsBtn(){ fsBtn.textContent = isFS() ? '✕' : '⛶'; fsBtn.title = isFS() ? 'Vollbild beenden' : 'Vollbild'; }
+
+// Automatisch Vollbild beim ersten Klick / Touch auf die Seite
+let fsTriggered = false;
+function tryAutoFS(){
+  if(!fsTriggered && !isFS()){
+    fsTriggered = true;
+    enterFS();
+  }
+}
+document.addEventListener('click',      tryAutoFS, {once:true});
+document.addEventListener('touchstart', tryAutoFS, {once:true});
+</script>
+</body>
+</html>
