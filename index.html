@@ -844,6 +844,32 @@ canvas#chart{width:100%!important;height:220px!important}
       <div class="formula-bar" id="sp-formula" style="display:none">
         c = G·d⁴ / (8·D³·n) &nbsp;→&nbsp; <span id="sp-formula-text"></span>
       </div>
+
+      <!-- Kennlinie -->
+      <div class="sec" style="margin-top:8px">⑤ Federkennlinie</div>
+      <div class="chart-card" id="sp-chart-card" style="margin-bottom:14px;display:none">
+        <div class="chart-title" id="sp-chart-title">Kraft F [N] über Federweg f [mm]</div>
+        <div style="position:relative;width:100%;height:200px">
+          <canvas id="sp-chart" style="position:absolute;top:0;left:0;width:100%!important;height:100%!important"></canvas>
+        </div>
+      </div>
+
+      <!-- Wertetabelle -->
+      <div id="sp-table-wrap" style="display:none;margin-bottom:8px">
+        <div class="sec">Wertetabelle</div>
+        <div class="crd" style="overflow-x:auto">
+          <table id="sp-table" style="width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:11px">
+            <thead>
+              <tr style="background:var(--surf);border-bottom:1px solid var(--border)">
+                <th style="padding:7px 12px;text-align:left;color:var(--muted);font-weight:700;letter-spacing:1px">Federweg f [mm]</th>
+                <th style="padding:7px 12px;text-align:right;color:var(--muted);font-weight:700;letter-spacing:1px">Kraft F [N]</th>
+                <th style="padding:7px 12px;text-align:right;color:var(--muted);font-weight:700;letter-spacing:1px">Länge L [mm]</th>
+              </tr>
+            </thead>
+            <tbody id="sp-table-body"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -2014,6 +2040,96 @@ function calcSpring(){
   document.getElementById('sp-formula').style.display='';
   document.getElementById('sp-formula-text').textContent =
     `${G.toLocaleString('de')}·${d}⁴/(8·${Dm}³·${fmtSP(rn,4)}) = ${fmtSP(c,4)} N/mm`;
+
+  // ── Kennlinie ──────────────────────────────────────────────────────────
+  buildSpringChart(c, rL0, F0, isTension, rn, d);
+}
+
+let spChartInst = null;
+
+function buildSpringChart(c, L0, F0, isTension, n, d){
+  const card  = document.getElementById('sp-chart-card');
+  const wrap  = document.getElementById('sp-table-wrap');
+  const tbody = document.getElementById('sp-table-body');
+
+  if(!c || c<=0){ card.style.display='none'; wrap.style.display='none'; return; }
+  card.style.display=''; wrap.style.display='';
+
+  // Maximaler Federweg
+  const fmax = isTension ? n*d : (L0 ? L0-(n+2)*d*1.0 : n*d*2);
+  const steps = 10;
+  const fStep = fmax/steps;
+
+  const fArr=[], FArr=[], LArr=[];
+  for(let i=0; i<=steps; i++){
+    const f = Math.round(fStep*i*100)/100;
+    const F = isTension ? F0+c*f : c*f;
+    const L = L0 ? (isTension ? L0+f : L0-f) : null;
+    fArr.push(f);
+    FArr.push(Math.round(F*100)/100);
+    LArr.push(L ? Math.round(L*100)/100 : null);
+  }
+
+  // Diagramm
+  const ctx = document.getElementById('sp-chart').getContext('2d');
+  if(spChartInst) spChartInst.destroy();
+  spChartInst = new Chart(ctx,{
+    type:'line',
+    data:{
+      labels: fArr.map(f=>f+' mm'),
+      datasets:[{
+        label:'Federkraft F [N]',
+        data: FArr,
+        borderColor:'#2E75B6',
+        backgroundColor:'rgba(46,117,182,0.08)',
+        borderWidth:2.5,
+        pointRadius:3,
+        fill:true,
+        tension:0,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'rgba(31,56,100,0.92)',
+          titleColor:'#E8F0F8', bodyColor:'#A8C4E0',
+          titleFont:{size:10}, bodyFont:{size:10},
+          callbacks:{
+            title: items=>`f = ${items[0].label}`,
+            label: item=>`F = ${item.raw} N`
+          }
+        }
+      },
+      scales:{
+        x:{
+          title:{display:true,text:`Federweg f [mm] ${isTension?'(Zughub)':'(Druckweg)'}`,color:'#7A9BB5',font:{size:10,family:"'Barlow',sans-serif"}},
+          ticks:{color:'#595959',font:{size:10}},
+          grid:{color:'rgba(46,117,182,0.08)'}
+        },
+        y:{
+          title:{display:true,text:'Kraft F [N]',color:'#2E75B6',font:{size:10,family:"'Barlow',sans-serif"}},
+          ticks:{color:'#2E75B6',font:{size:10},callback:v=>v+' N'},
+          grid:{color:'rgba(46,117,182,0.08)'},
+          beginAtZero:true
+        }
+      }
+    }
+  });
+
+  // Tabelle
+  tbody.innerHTML='';
+  fArr.forEach((f,i)=>{
+    const tr=document.createElement('tr');
+    tr.style.borderBottom='1px solid var(--border)';
+    tr.innerHTML=`
+      <td style="padding:5px 12px;color:var(--text)">${f}</td>
+      <td style="padding:5px 12px;text-align:right;color:var(--blue);font-weight:600">${FArr[i]}</td>
+      <td style="padding:5px 12px;text-align:right;color:var(--muted)">${LArr[i]!==null?LArr[i]:'–'}</td>`;
+    tbody.appendChild(tr);
+  });
 }
 
 document.getElementById('sp-type').addEventListener('change', calcSpring);
