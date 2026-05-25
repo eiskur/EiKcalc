@@ -412,10 +412,6 @@ canvas#chart{width:100%!important;height:220px!important}
           <span class="iu">mm</span><span class="res-box" id="res-dda-mm">–</span>
         </div>
         <div class="ir-res">
-          <div class="il">Zunahme <b>ΔD_a</b></div>
-          <span class="iu">µm</span><span class="res-box" id="res-dda-um">–</span>
-        </div>
-        <div class="ir-res">
           <div class="il">Neuer Außendurchmesser <b>D_a</b></div>
           <span class="iu">mm</span><span class="res-box" id="res-da1">–</span>
         </div>
@@ -431,10 +427,6 @@ canvas#chart{width:100%!important;height:220px!important}
         <div class="ir-res">
           <div class="il">Zunahme <b>ΔD_i</b></div>
           <span class="iu">mm</span><span class="res-box" id="res-ddi-mm">–</span>
-        </div>
-        <div class="ir-res">
-          <div class="il">Zunahme <b>ΔD_i</b></div>
-          <span class="iu">µm</span><span class="res-box" id="res-ddi-um">–</span>
         </div>
         <div class="ir-res">
           <div class="il">Neuer Innendurchmesser <b>D_i</b></div>
@@ -455,10 +447,6 @@ canvas#chart{width:100%!important;height:220px!important}
         <div class="ir-res">
           <div class="il">Bohrung öffnet sich um</div>
           <span class="iu">mm</span><span class="res-box" id="res-bore-mm">–</span>
-        </div>
-        <div class="ir-res">
-          <div class="il">Bohrung öffnet sich um</div>
-          <span class="iu">µm</span><span class="res-box" id="res-bore-um">–</span>
         </div>
         <div style="padding:12px 14px">
           <div class="info-box">
@@ -1546,8 +1534,8 @@ function calcW(){
   // Need both material and valid temperatures for geometry results
   if(!selMat || isNaN(dT)){
     document.getElementById("formula-bar").style.display="none";
-    clr(["res-dl-mm","res-dl-um","res-l1","res-dda-mm","res-dda-um","res-da1",
-         "res-ddi-mm","res-ddi-um","res-di1","res-t0","res-t1","res-bore-mm","res-bore-um"]);
+    clr(["res-dl-mm","res-dl-um","res-l1","res-dda-mm","res-da1",
+         "res-ddi-mm","res-di1","res-t0","res-t1","res-bore-mm"]);
     return;
   }
 
@@ -1570,17 +1558,15 @@ function calcW(){
   if(!isNaN(Da0) && Da0>0){
     const dDa = a*Da0*dT;
     setW("res-dda-mm", fmtW(dDa,4));
-    setW("res-dda-um",  fmtW(dDa*1000,4));
     setW("res-da1",    fmtW(Da0+dDa,5));
-  } else clr(["res-dda-mm","res-dda-um","res-da1"]);
+  } else clr(["res-dda-mm","res-da1"]);
 
   // ④ Innendurchmesser
   if(!isNaN(Di0) && Di0>0){
     const dDi = a*Di0*dT;
     setW("res-ddi-mm", fmtW(dDi,4));
-    setW("res-ddi-um",  fmtW(dDi*1000,4));
     setW("res-di1",    fmtW(Di0+dDi,5));
-  } else clr(["res-ddi-mm","res-ddi-um","res-di1"]);
+  } else clr(["res-ddi-mm","res-di1"]);
 
   // ⑤ Wanddicke
   if(!isNaN(Da0)&&!isNaN(Di0)&&Da0>0&&Di0>0&&Da0>Di0){
@@ -1590,8 +1576,7 @@ function calcW(){
     setW("res-t0",      fmtW(t0,4));
     setW("res-t1",      fmtW((Da1-Di1)/2,4));
     setW("res-bore-mm", fmtW(bore,4));
-    setW("res-bore-um", fmtW(bore*1000,4));
-  } else clr(["res-t0","res-t1","res-bore-mm","res-bore-um"]);
+  } else clr(["res-t0","res-t1","res-bore-mm"]);
 }
 
 
