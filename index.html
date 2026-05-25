@@ -337,7 +337,7 @@ canvas#chart{width:100%!important;height:220px!important}
 
       <div class="sec">① Gemeinsame Eingaben</div>
       <div class="crd" style="margin-bottom:20px">
-        <button class="mat-pick-btn" id="thermal-mat-btn" onclick="openMatModal('thermal')">
+        <button class="mat-pick-btn" id="thermal-mat-btn">
           <span>⬡</span>
           <span class="mpb-label" id="badge-name">← Werkstoff wählen</span>
           <span class="mpb-rho" id="badge-alpha"></span>
@@ -1024,7 +1024,7 @@ canvas#chart{width:100%!important;height:220px!important}
         <span class="li"><span class="ld-g"></span> Ergebnis</span>
       </div>
 
-      <button class="mat-pick-btn" id="vm-mat-btn" onclick="openMatModal('volume')">
+      <button class="mat-pick-btn" id="vm-mat-btn">
         <span>⬡</span>
         <span class="mpb-label" id="vm-badge-name">← Werkstoff wählen</span>
         <span class="mpb-rho" id="vm-badge-rho"></span>
@@ -2503,6 +2503,10 @@ function buildModalList(filter){
     container.appendChild(div);
   });
 }
+
+// Wire up material picker buttons
+document.getElementById("thermal-mat-btn").addEventListener("click", () => openMatModal("thermal"));
+document.getElementById("vm-mat-btn").addEventListener("click", () => openMatModal("volume"));
 </script>
 
 <!-- Fullscreen -->
