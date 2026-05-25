@@ -942,7 +942,7 @@ canvas#chart{width:100%!important;height:220px!important}
         </div>
         <div class="ir">
           <div class="il">Kolbengeschwindigkeit <b>v</b><small>für Volumenstrom & Leistung</small></div>
-          <span class="iu">m/s</span>
+          <span class="iu">mm/s</span>
           <input id="hy-v" type="text" inputmode="decimal" class="if empty" value="–">
         </div>
       </div>
@@ -1789,7 +1789,8 @@ function calcHydro(){
   const p   = getHY("hy-p");
   const p2  = 0;
   const eta = isNaN(getHY("hy-eta")) ? 95 : getHY("hy-eta");
-  const v   = isNaN(getHY("hy-v"))   ? 0  : getHY("hy-v");
+  const v_mms = isNaN(getHY("hy-v")) ? 0 : getHY("hy-v"); // mm/s
+  const v     = v_mms / 1000;                               // m/s für Berechnung
 
   const hint = document.getElementById("hy-hint");
   const ids_clr = ["hy-AK","hy-AS","hy-AR","hy-phi","hy-ratio",
