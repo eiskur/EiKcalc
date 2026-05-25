@@ -2439,6 +2439,7 @@ document.getElementById("mat-modal-close").addEventListener("click", closeMatMod
 document.getElementById("mat-modal").addEventListener("click", e => {
   if(e.target === document.getElementById("mat-modal")) closeMatModal();
 });
+document.querySelector(".mat-modal-box").addEventListener("click", e => e.stopPropagation());
 document.getElementById("mat-modal-search").addEventListener("input", e => buildModalList(e.target.value));
 document.getElementById("mat-modal-search").addEventListener("focus", e => {
   e.target.removeAttribute("inputmode");
@@ -2481,21 +2482,21 @@ function buildModalList(filter){
         : `α = ${(m.alpha*1e6).toFixed(2)} × 10⁻⁶ /K`;
       btn.innerHTML = `<span class="mat-name">${m.name}</span><span class="mat-alpha-val">${sub}</span>`;
 
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
         if(modalContext === 'thermal'){
           selMat = m;
-          // Update thermal button
           document.getElementById("badge-name").textContent = m.name;
           document.getElementById("badge-alpha").textContent = `α = ${(m.alpha*1e6).toFixed(2)} × 10⁻⁶ /K`;
+          closeMatModal();
           calcW();
         } else if(modalContext === 'volume'){
           vmSelMat = m;
-          // Update volume button
           document.getElementById("vm-badge-name").textContent = m.name;
           document.getElementById("vm-badge-rho").textContent = `ρ = ${m.rho} kg/dm³`;
+          closeMatModal();
           calcVolume();
         }
-        closeMatModal();
       });
       div.appendChild(btn);
     });
