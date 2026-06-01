@@ -1257,22 +1257,28 @@ canvas#chart{width:100%!important;height:220px!important}
 
 <!-- ══ Stahlseil Script ════════════════════════════════════════════════════ -->
 <script>
-const WR_API_KEY = '$2a$10$ZFbcpMdZW2gm5knKymubvOsEaBmQWjushLDf6yA4uby4C/F27pm/e';
-const WR_BIN_ID  = '6a1ddbc1da38895dfe7806b3';
-const WR_URL     = `https://api.jsonbin.io/v3/b/${WR_BIN_ID}`;
-const WR_HEADERS = {'Content-Type':'application/json','X-Master-Key':WR_API_KEY};
+const WR_TOKEN = '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';
+const WR_REPO  = 'eiskur/EiKcalc';
+const WR_FILE  = 'ropes.json';
+const WR_API   = `https://api.github.com/repos/${WR_REPO}/contents/${WR_FILE}`;
+const WR_RAW   = `https://raw.githubusercontent.com/${WR_REPO}/main/${WR_FILE}`;
 
 let wrRopes = [];
+let wrFileSha = '';
 
 // ── Cloud laden ──────────────────────────────────────────────────────────
 async function wrLoadRopes(){
   const st = document.getElementById('wr-sync-status');
   try {
-    const r = await fetch(WR_URL+'/latest', {headers:{'X-Master-Key':WR_API_KEY}});
+    const r = await fetch(WR_RAW + '?t=' + Date.now());
     const j = await r.json();
-    wrRopes = j.record?.ropes || [];
+    wrRopes = j.ropes || [];
     st.textContent = '☁ ' + wrRopes.length + ' Seile geladen';
     st.style.color = 'var(--green)';
+    // SHA für späteres Update laden
+    const r2 = await fetch(WR_API, {headers:{'Authorization':'token '+WR_TOKEN,'User-Agent':'EiKcalc'}});
+    const j2 = await r2.json();
+    wrFileSha = j2.sha || '';
   } catch(e) {
     st.textContent = '⚠ Offline — kein Cloud-Zugriff';
     st.style.color = 'var(--muted)';
@@ -1284,12 +1290,24 @@ async function wrLoadRopes(){
 // ── Cloud speichern ──────────────────────────────────────────────────────
 async function wrSaveRopes(){
   try {
-    await fetch(WR_URL, {
-      method:'PUT',
-      headers:WR_HEADERS,
-      body:JSON.stringify({ropes:wrRopes})
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify({ropes:wrRopes}, null, 2))));
+    const body = {
+      message: 'EiKcalc: Seile aktualisiert',
+      content: content,
+      sha: wrFileSha
+    };
+    const r = await fetch(WR_API, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'token ' + WR_TOKEN,
+        'Content-Type': 'application/json',
+        'User-Agent': 'EiKcalc'
+      },
+      body: JSON.stringify(body)
     });
-    return true;
+    const j = await r.json();
+    wrFileSha = j.content?.sha || wrFileSha;
+    return r.ok;
   } catch(e){ return false; }
 }
 
