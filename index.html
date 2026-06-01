@@ -274,6 +274,13 @@ canvas#chart{width:100%!important;height:220px!important}
         <span class="tab-sub">Gewinde · Vorspannkraft</span>
       </span>
     </button>
+    <button class="tab-btn" data-tool="units">
+      <span class="tab-icon">⇄</span>
+      <span>
+        <span class="tab-label">Einheiten</span>
+        <span class="tab-sub">Umrechner · alle Kategorien</span>
+      </span>
+    </button>
     <button class="tab-btn" data-tool="volume">
       <span class="tab-icon">📐</span>
       <span>
@@ -1218,6 +1225,225 @@ canvas#chart{width:100%!important;height:220px!important}
   </div>
 </div>
 </div><!-- /tool-torque -->
+
+<!-- ══ TOOL: EINHEITENUMRECHNER ══════════════════════════════════════════ -->
+<div id="tool-units" class="tool-panel">
+<div class="wrap">
+
+  <!-- Kategorie-Auswahl -->
+  <div class="sec">Kategorie</div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px" id="unit-cats"></div>
+
+  <!-- Umrechner -->
+  <div class="crd" id="unit-card" style="margin-bottom:16px;display:none">
+    <div class="card-header" style="padding:10px 16px;background:var(--surf);border-bottom:1px solid var(--border);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;color:var(--navy)" id="unit-title">–</div>
+    <div id="unit-rows" style="padding:4px 0"></div>
+  </div>
+
+  <div class="hint" id="unit-hint">← Kategorie wählen</div>
+
+</div>
+</div><!-- /tool-units -->
+
+<!-- ══ Einheitenumrechner Script ═══════════════════════════════════════════ -->
+<script>
+const UNIT_CATS = [
+  { id:'length', label:'Länge', icon:'📏',
+    units:[
+      {id:'mm',   label:'Millimeter',  sym:'mm',   toBase:1},
+      {id:'cm',   label:'Zentimeter',  sym:'cm',   toBase:10},
+      {id:'m',    label:'Meter',       sym:'m',    toBase:1000},
+      {id:'km',   label:'Kilometer',   sym:'km',   toBase:1e6},
+      {id:'inch', label:'Inch',        sym:'in',   toBase:25.4},
+      {id:'ft',   label:'Foot',        sym:'ft',   toBase:304.8},
+      {id:'yd',   label:'Yard',        sym:'yd',   toBase:914.4},
+      {id:'mile', label:'Mile',        sym:'mi',   toBase:1609344},
+    ]
+  },
+  { id:'force', label:'Kraft', icon:'⚡',
+    units:[
+      {id:'N',    label:'Newton',      sym:'N',    toBase:1},
+      {id:'kN',   label:'Kilonewton',  sym:'kN',   toBase:1000},
+      {id:'MN',   label:'Meganewton',  sym:'MN',   toBase:1e6},
+      {id:'kgf',  label:'Kilopond',    sym:'kgf',  toBase:9.80665},
+      {id:'tf',   label:'Tonnenkraft', sym:'tf',   toBase:9806.65},
+      {id:'lbf',  label:'Pound-force', sym:'lbf',  toBase:4.44822},
+      {id:'ozf',  label:'Ounce-force', sym:'ozf',  toBase:0.278014},
+      {id:'daN',  label:'Dekanewton',  sym:'daN',  toBase:10},
+    ]
+  },
+  { id:'pressure', label:'Druck', icon:'🔵',
+    units:[
+      {id:'Pa',   label:'Pascal',      sym:'Pa',   toBase:1},
+      {id:'kPa',  label:'Kilopascal',  sym:'kPa',  toBase:1000},
+      {id:'MPa',  label:'Megapascal',  sym:'MPa',  toBase:1e6},
+      {id:'bar',  label:'Bar',         sym:'bar',  toBase:1e5},
+      {id:'mbar', label:'Millibar',    sym:'mbar', toBase:100},
+      {id:'psi',  label:'PSI',         sym:'psi',  toBase:6894.76},
+      {id:'atm',  label:'Atmosphäre',  sym:'atm',  toBase:101325},
+      {id:'kgcm2',label:'kgf/cm²',     sym:'kgf/cm²',toBase:98066.5},
+    ]
+  },
+  { id:'torque', label:'Drehmoment', icon:'🔄',
+    units:[
+      {id:'Nm',    label:'Newtonmeter',     sym:'N·m',    toBase:1},
+      {id:'kNm',   label:'Kilonewtonmeter', sym:'kN·m',   toBase:1000},
+      {id:'Ncm',   label:'Newtoncm',        sym:'N·cm',   toBase:0.01},
+      {id:'Nmm',   label:'Newtonmm',        sym:'N·mm',   toBase:0.001},
+      {id:'kgfm',  label:'kgf·m',           sym:'kgf·m',  toBase:9.80665},
+      {id:'kgfcm', label:'kgf·cm',          sym:'kgf·cm', toBase:0.0980665},
+      {id:'lbfft', label:'lbf·ft',          sym:'lbf·ft', toBase:1.35582},
+      {id:'lbfin', label:'lbf·in',          sym:'lbf·in', toBase:0.112985},
+    ]
+  },
+  { id:'temp', label:'Temperatur', icon:'🌡',
+    special:'temp',
+    units:[
+      {id:'C', label:'Celsius',    sym:'°C'},
+      {id:'F', label:'Fahrenheit', sym:'°F'},
+      {id:'K', label:'Kelvin',     sym:'K'},
+    ]
+  },
+  { id:'power', label:'Leistung', icon:'⚙',
+    units:[
+      {id:'W',   label:'Watt',       sym:'W',   toBase:1},
+      {id:'kW',  label:'Kilowatt',   sym:'kW',  toBase:1000},
+      {id:'MW',  label:'Megawatt',   sym:'MW',  toBase:1e6},
+      {id:'PS',  label:'Pferdestärke (PS)', sym:'PS', toBase:735.499},
+      {id:'hp',  label:'Horsepower (hp)',  sym:'hp',  toBase:745.7},
+      {id:'kcal',label:'kcal/h',     sym:'kcal/h',toBase:1.163},
+      {id:'BTU', label:'BTU/h',      sym:'BTU/h',toBase:0.293071},
+    ]
+  },
+  { id:'mass', label:'Masse', icon:'⚖',
+    units:[
+      {id:'g',   label:'Gramm',      sym:'g',   toBase:0.001},
+      {id:'kg',  label:'Kilogramm',  sym:'kg',  toBase:1},
+      {id:'t',   label:'Tonne',      sym:'t',   toBase:1000},
+      {id:'lb',  label:'Pound',      sym:'lb',  toBase:0.453592},
+      {id:'oz',  label:'Ounce',      sym:'oz',  toBase:0.0283495},
+      {id:'st',  label:'Stone',      sym:'st',  toBase:6.35029},
+      {id:'mg',  label:'Milligramm', sym:'mg',  toBase:1e-6},
+    ]
+  },
+  { id:'flow', label:'Volumenstrom', icon:'💧',
+    units:[
+      {id:'lmin',   label:'Liter/min',    sym:'l/min',   toBase:1},
+      {id:'lh',     label:'Liter/h',      sym:'l/h',     toBase:1/60},
+      {id:'m3h',    label:'m³/h',         sym:'m³/h',    toBase:1000/60},
+      {id:'m3min',  label:'m³/min',       sym:'m³/min',  toBase:1000},
+      {id:'m3s',    label:'m³/s',         sym:'m³/s',    toBase:60000},
+      {id:'gpm',    label:'GPM (US)',      sym:'GPM',     toBase:3.78541},
+      {id:'gph',    label:'GPH (US)',      sym:'GPH',     toBase:0.0630902},
+      {id:'cfm',    label:'CFM',          sym:'ft³/min', toBase:28.3168},
+    ]
+  },
+];
+
+// ── Build category buttons ──────────────────────────────────────────────────
+const catDiv = document.getElementById('unit-cats');
+UNIT_CATS.forEach(cat => {
+  const btn = document.createElement('button');
+  btn.style.cssText='display:flex;align-items:center;gap:6px;background:var(--surf);border:1.5px solid var(--border);border-radius:8px;padding:8px 14px;cursor:pointer;font-family:\'Barlow\',sans-serif;font-size:12px;font-weight:600;color:var(--blue);transition:all .15s';
+  btn.innerHTML=`<span>${cat.icon}</span><span>${cat.label}</span>`;
+  btn.dataset.cat = cat.id;
+  btn.addEventListener('click', ()=>{ selectUnitCat(cat.id); });
+  catDiv.appendChild(btn);
+});
+
+let activeCat = null;
+const unitVals = {};  // {unitId: value}
+
+function toC(f){ return (f-32)*5/9; }
+function toF(c){ return c*9/5+32; }
+function toK(c){ return c+273.15; }
+function fromC(c){ return c; }
+
+function tempConvert(fromId, val){
+  // Convert to Celsius first
+  let c;
+  if(fromId==='C') c=val;
+  else if(fromId==='F') c=(val-32)*5/9;
+  else c=val-273.15;
+  return {C:c, F:c*9/5+32, K:c+273.15};
+}
+
+function fmtU(v){
+  if(v===null||isNaN(v)) return '';
+  const abs=Math.abs(v);
+  if(abs===0) return '0';
+  if(abs>=1e6||abs<1e-4) return v.toExponential(4);
+  return parseFloat(v.toPrecision(7)).toString();
+}
+
+function selectUnitCat(catId){
+  activeCat = UNIT_CATS.find(c=>c.id===catId);
+  if(!activeCat) return;
+
+  // Highlight active cat button
+  catDiv.querySelectorAll('button').forEach(b=>{
+    const active = b.dataset.cat===catId;
+    b.style.background  = active?'var(--blue)':'var(--surf)';
+    b.style.color       = active?'#fff':'var(--blue)';
+    b.style.borderColor = active?'var(--blue)':'var(--border)';
+  });
+
+  document.getElementById('unit-hint').style.display='none';
+  document.getElementById('unit-card').style.display='';
+  document.getElementById('unit-title').textContent = `${activeCat.icon}  ${activeCat.label}`;
+
+  // Build input rows
+  const rowsDiv = document.getElementById('unit-rows');
+  rowsDiv.innerHTML='';
+  activeCat.units.forEach(u=>{
+    const row=document.createElement('div');
+    row.className='ir';
+    row.innerHTML=`
+      <div class="il"><b>${u.sym}</b><small>${u.label}</small></div>
+      <input type="text" inputmode="decimal" class="if" id="unit-inp-${u.id}"
+        style="width:130px;text-align:right" placeholder="–">`;
+    rowsDiv.appendChild(row);
+
+    const inp=row.querySelector('input');
+    inp.addEventListener('focus',()=>{ setTimeout(()=>inp.select(),0); });
+    inp.addEventListener('input',()=>{
+      const raw=inp.value.replace(',','.');
+      const val=parseFloat(raw);
+      if(isNaN(val)||raw.trim()===''){
+        // Clear all others
+        activeCat.units.forEach(u2=>{
+          if(u2.id!==u.id) document.getElementById('unit-inp-'+u2.id).value='';
+        });
+        return;
+      }
+      updateUnits(u.id, val);
+    });
+  });
+}
+
+function updateUnits(fromId, val){
+  const cat = activeCat;
+  if(!cat) return;
+
+  if(cat.special==='temp'){
+    const res=tempConvert(fromId, val);
+    cat.units.forEach(u=>{
+      const el=document.getElementById('unit-inp-'+u.id);
+      if(el && u.id!==fromId) el.value=fmtU(res[u.id]);
+    });
+  } else {
+    // Convert to base unit first
+    const fromU=cat.units.find(u=>u.id===fromId);
+    if(!fromU) return;
+    const base=val*fromU.toBase;
+    cat.units.forEach(u=>{
+      if(u.id===fromId) return;
+      const el=document.getElementById('unit-inp-'+u.id);
+      if(el) el.value=fmtU(base/u.toBase);
+    });
+  }
+}
+</script>
 
 <!-- ══ TOOL: HYDRAULIKZYLINDER ════════════════════════════════════════════ -->
 <div id="tool-hydro" class="tool-panel">
