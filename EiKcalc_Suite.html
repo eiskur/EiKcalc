@@ -330,6 +330,13 @@ canvas#chart{width:100%!important;height:220px!important}
         <span class="tab-sub">L10 · ISO 281</span>
       </span>
     </button>
+    <button class="tab-btn" data-tool="wirerope">
+      <span class="tab-icon">🪢</span>
+      <span>
+        <span class="tab-label">Stahlseil</span>
+        <span class="tab-sub">Litzen · Frequenzen · EN 12385</span>
+      </span>
+    </button>
     <button class="tab-btn" data-tool="sheave">
       <span class="tab-icon">⬡</span>
       <span>
@@ -996,6 +1003,572 @@ canvas#chart{width:100%!important;height:220px!important}
   </div>
 </div>
 </div><!-- /tool-bearing -->
+
+<!-- ══ TOOL: STAHLSEIL ════════════════════════════════════════════════════ -->
+<div id="tool-wirerope" class="tool-panel">
+<div class="wrap">
+
+  <div class="legend">
+    <span class="li"><span class="ld-b"></span> Eingabe</span>
+    <span class="li"><span class="ld-g"></span> Ergebnis</span>
+  </div>
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border)">
+    <button id="wr-tab-calc-btn" onclick="wrTab('calc')" style="padding:8px 16px;font-family:'Barlow',sans-serif;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--blue);border-bottom:2px solid var(--blue);margin-bottom:-2px">Berechnung</button>
+    <button id="wr-tab-cat-btn" onclick="wrTab('cat')" style="padding:8px 16px;font-family:'Barlow',sans-serif;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">Seilkatalog</button>
+    <button id="wr-tab-add-btn" onclick="wrTab('add')" style="padding:8px 16px;font-family:'Barlow',sans-serif;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">+ Seil hinzufügen</button>
+    <div style="flex:1"></div>
+    <div id="wr-sync-status" style="padding:6px 12px;font-size:10px;color:var(--muted);align-self:center">⏳ Verbinde...</div>
+  </div>
+
+  <!-- TAB: BERECHNUNG -->
+  <div id="wr-tab-calc">
+    <div style="display:flex;gap:20px;flex-wrap:wrap">
+
+      <!-- Eingabe -->
+      <div style="flex:1;min-width:260px">
+        <div class="sec">① Seilauswahl</div>
+        <div class="crd" style="margin-bottom:14px">
+          <div class="ir">
+            <div class="il">Aus Katalog<small>Cloud-Daten</small></div>
+            <div class="sw">
+              <select class="is" id="wr-preset" style="min-width:100%;max-width:100%">
+                <option value="">— Katalog wird geladen —</option>
+              </select>
+            </div>
+          </div>
+          <div style="height:1px;background:var(--border);margin:2px 14px 6px"></div>
+          <div class="ir">
+            <div class="il">Konstruktion<small>Auswahl oder manuell</small></div>
+            <div class="sw">
+              <select class="is" id="wr-konstr" style="min-width:100%;max-width:100%">
+                <option value="">— manuell eingeben —</option>
+                <optgroup label="Förderseile (IWRC)">
+                  <option value="6|19">6×19S-IWRC — Standard Förderseil</option>
+                  <option value="6|25">6×25F-IWRC — flexibel</option>
+                  <option value="6|36">6×36WS-IWRC — sehr flexibel</option>
+                  <option value="8|19">8×19S-IWRC — höchste Flexibilität</option>
+                  <option value="6|37">6×37-IWRC — viele Biegewechsel</option>
+                </optgroup>
+                <optgroup label="Zugseile Umlaufbahn">
+                  <option value="6|19">6×19 — Umlaufseil Standard</option>
+                  <option value="6|36">6×36WS — Umlaufseil flexibel</option>
+                </optgroup>
+                <optgroup label="Sonstige">
+                  <option value="18|7">18×7 — rotationsarm</option>
+                  <option value="35|7">35×7 — rotationsarm flexibel</option>
+                  <option value="6|7">6×7 — starr, wenig Biegung</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+          <div class="ir">
+            <div class="il">Anzahl Litzen <b>n_L</b></div>
+            <span class="iu">–</span>
+            <input id="wr-litzen" type="text" inputmode="decimal" class="if empty" value="6">
+          </div>
+          <div class="ir">
+            <div class="il">Drähte / Litze <b>n_D</b></div>
+            <span class="iu">–</span>
+            <input id="wr-draehte" type="text" inputmode="decimal" class="if empty" value="19">
+          </div>
+          <div class="ir">
+            <div class="il">Nenndurchmesser <b>d</b></div>
+            <span class="iu">mm</span>
+            <input id="wr-d" type="text" inputmode="decimal" class="if empty" value="–">
+          </div>
+          <div class="ir">
+            <div class="il">Schlagfaktor <b>k</b></div>
+            <div class="sw">
+              <select class="is" id="wr-kf">
+                <option value="6.0">6.0 — kurz</option>
+                <option value="6.5">6.5 — Gleichschlag</option>
+                <option value="7.0" selected>7.0 — Kreuzschlag</option>
+                <option value="7.5">7.5 — lang</option>
+                <option value="8.0">8.0 — sehr lang</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec">② Normwerte <small style="font-size:10px;color:var(--muted);font-weight:400">(grün = aus Norm, manuell überschreibbar)</small></div>
+        <div class="crd" style="margin-bottom:14px">
+          <div class="ir">
+            <div class="il">Schlaglänge <b>h_L</b><small>h_L = k×d · nachgemessen?</small></div>
+            <span class="iu">mm</span>
+            <input id="wr-hL" type="text" inputmode="decimal" class="if auto" value="–">
+          </div>
+          <div class="ir">
+            <div class="il">Drahtdurchmesser <b>d_D</b><small>EN 12385 Näherung</small></div>
+            <span class="iu">mm</span>
+            <input id="wr-dD" type="text" inputmode="decimal" class="if auto" value="–">
+          </div>
+          <div class="ir">
+            <div class="il">Litzendurchmesser <b>d_L</b><small>EN 12385 Näherung</small></div>
+            <span class="iu">mm</span>
+            <input id="wr-dL" type="text" inputmode="decimal" class="if auto" value="–">
+          </div>
+        </div>
+
+        <div class="sec">③ Betrieb</div>
+        <div class="crd" style="margin-bottom:14px">
+          <div class="ir">
+            <div class="il">Seilgeschwindigkeit <b>v</b></div>
+            <span class="iu">m/s</span>
+            <input id="wr-v" type="text" inputmode="decimal" class="if empty" value="–">
+          </div>
+          <div class="ir">
+            <div class="il">Scheibendurchmesser <b>D</b></div>
+            <span class="iu">mm</span>
+            <input id="wr-D" type="text" inputmode="decimal" class="if empty" value="–">
+          </div>
+        </div>
+
+        <div class="info-box">
+          💡 &nbsp;Konstruktion wählen → n_L und n_D <b style="color:var(--green)">grün</b> gesetzt · Antippen zum manuellen Überschreiben<br>
+          Schlaglänge h_L nachgemessen? → grünes Feld antippen und Messwert eingeben<br>
+          f_s = v/h_L &nbsp;·&nbsp; f_L = f_s × n_L &nbsp;·&nbsp; f_D = f_L × n_D
+        </div>
+      </div>
+
+      <!-- Ergebnisse -->
+      <div style="flex:1;min-width:260px">
+        <div class="sec">④ Seilgeometrie</div>
+        <div class="crd" style="margin-bottom:14px">
+          <div class="dr"><span class="dk">Drähte gesamt n_L × n_D</span><span class="dv" id="wr-total">–</span></div>
+          <div class="dr"><span class="dk">D/d Verhältnis</span><span class="dv" id="wr-Dd">–</span></div>
+          <div class="dr"><span class="dk">Scheibendrehzahl n_S</span><span class="dv" id="wr-nS">–</span></div>
+        </div>
+
+        <div class="sec">⑤ Erregerfrequenzen</div>
+        <div class="crd" style="margin-bottom:14px">
+          <div class="dr"><span class="dk">Seilübergang f_s = v/h_L</span><span class="dv" id="wr-fs" style="color:var(--lblue)">–</span></div>
+          <div class="dr"><span class="dk">Litzenfrequenz f_L = f_s × n_L</span><span class="dv" id="wr-fL">–</span></div>
+          <div class="dr"><span class="dk">Drahtfrequenz f_D = f_L × n_D</span><span class="dv" id="wr-fD" style="color:var(--green)">–</span></div>
+        </div>
+
+        <div class="formula-bar" id="wr-status" style="display:none">
+          <span id="wr-status-text"></span>
+        </div>
+
+        <div class="formula-bar" id="wr-formula" style="display:none;margin-top:6px">
+          <span id="wr-formula-text" style="font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.8"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: KATALOG -->
+  <div id="wr-tab-cat" style="display:none">
+    <div id="wr-cat-loading" style="text-align:center;padding:2rem;color:var(--muted);font-size:13px">⏳ Lade Seile aus Cloud...</div>
+    <div id="wr-cat-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:13px">
+      Noch keine Seile gespeichert.<br><small>→ Tab „+ Seil hinzufügen" verwenden</small>
+    </div>
+    <div id="wr-cat-table-wrap" style="display:none;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:'JetBrains Mono',monospace">
+        <thead>
+          <tr style="background:var(--surf);border-bottom:1px solid var(--border)">
+            <th style="padding:7px 10px;text-align:left;color:var(--muted);font-weight:700;font-size:10px;letter-spacing:1px">HERSTELLER</th>
+            <th style="padding:7px 10px;text-align:left;color:var(--muted);font-weight:700;font-size:10px">BEZEICHNUNG</th>
+            <th style="padding:7px 10px;text-align:center;color:var(--muted);font-weight:700;font-size:10px">KONSTR.</th>
+            <th style="padding:7px 10px;text-align:center;color:var(--muted);font-weight:700;font-size:10px">d [mm]</th>
+            <th style="padding:7px 10px;text-align:center;color:var(--muted);font-weight:700;font-size:10px">k</th>
+            <th style="padding:7px 10px;text-align:center;color:var(--muted);font-weight:700;font-size:10px">F_B [kN]</th>
+            <th style="padding:7px 10px;text-align:center;color:var(--muted);font-weight:700;font-size:10px">kg/m</th>
+            <th style="padding:7px 10px"></th>
+          </tr>
+        </thead>
+        <tbody id="wr-cat-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB: HINZUFÜGEN -->
+  <div id="wr-tab-add" style="display:none">
+    <div class="crd" style="margin-bottom:14px">
+      <div class="sec" style="margin:0 0 10px">Neues Seil eintragen</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+        <div class="ir">
+          <div class="il">Hersteller</div>
+          <div class="sw">
+            <select class="is" id="wr-a-hersteller">
+              <option>Fatzer</option>
+              <option>Teufelberger</option>
+              <option>Redaelli</option>
+              <option>Bridon</option>
+              <option>WireCo</option>
+              <option>Sonstiger</option>
+            </select>
+          </div>
+        </div>
+        <div class="ir">
+          <div class="il">Bezeichnung</div>
+          <span class="iu"></span>
+          <input id="wr-a-name" type="text" class="if" placeholder="z.B. CASAR Turboplast" style="font-size:12px">
+        </div>
+        <div class="ir">
+          <div class="il">Litzen <b>n_L</b></div>
+          <span class="iu">–</span>
+          <input id="wr-a-litzen" type="text" inputmode="decimal" class="if" value="6">
+        </div>
+        <div class="ir">
+          <div class="il">Drähte/Litze <b>n_D</b></div>
+          <span class="iu">–</span>
+          <input id="wr-a-draehte" type="text" inputmode="decimal" class="if" value="19">
+        </div>
+        <div class="ir">
+          <div class="il">Nenndurchm. <b>d</b></div>
+          <span class="iu">mm</span>
+          <input id="wr-a-d" type="text" inputmode="decimal" class="if" value="16">
+        </div>
+        <div class="ir">
+          <div class="il">Schlagfaktor <b>k</b></div>
+          <div class="sw">
+            <select class="is" id="wr-a-kf">
+              <option value="6.0">6.0</option>
+              <option value="6.5">6.5</option>
+              <option value="7.0" selected>7.0</option>
+              <option value="7.5">7.5</option>
+              <option value="8.0">8.0</option>
+            </select>
+          </div>
+        </div>
+        <div class="ir">
+          <div class="il">Bruchkraft <b>F_B</b><small>optional</small></div>
+          <span class="iu">kN</span>
+          <input id="wr-a-fb" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+        <div class="ir">
+          <div class="il">Gewicht<small>optional</small></div>
+          <span class="iu">kg/m</span>
+          <input id="wr-a-gew" type="text" inputmode="decimal" class="if empty" value="–">
+        </div>
+      </div>
+      <div style="padding:10px 14px;display:flex;align-items:center;gap:12px">
+        <button id="wr-save-btn" onclick="wrSaveRope()" style="background:var(--navy);color:#fff;border:none;border-radius:7px;padding:9px 22px;font-family:'Barlow',sans-serif;font-size:13px;font-weight:700;cursor:pointer">💾 In Cloud speichern</button>
+        <span id="wr-save-msg" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div><!-- /tool-wirerope -->
+
+<!-- ══ Stahlseil Script ════════════════════════════════════════════════════ -->
+<script>
+const WR_API_KEY = '$2a$10$ZFbcpMdZW2gm5knKymubvOsEaBmQWjushLDf6yA4uby4C/F27pm/e';
+const WR_BIN_ID  = '6a1ddbc1da38895dfe7806b3';
+const WR_URL     = `https://api.jsonbin.io/v3/b/${WR_BIN_ID}`;
+const WR_HEADERS = {'Content-Type':'application/json','X-Master-Key':WR_API_KEY};
+
+let wrRopes = [];
+
+// ── Cloud laden ──────────────────────────────────────────────────────────
+async function wrLoadRopes(){
+  const st = document.getElementById('wr-sync-status');
+  try {
+    const r = await fetch(WR_URL+'/latest', {headers:{'X-Master-Key':WR_API_KEY}});
+    const j = await r.json();
+    wrRopes = j.record?.ropes || [];
+    st.textContent = '☁ ' + wrRopes.length + ' Seile geladen';
+    st.style.color = 'var(--green)';
+  } catch(e) {
+    st.textContent = '⚠ Offline — kein Cloud-Zugriff';
+    st.style.color = 'var(--muted)';
+  }
+  wrBuildPreset();
+  wrRenderCatalog();
+}
+
+// ── Cloud speichern ──────────────────────────────────────────────────────
+async function wrSaveRopes(){
+  try {
+    await fetch(WR_URL, {
+      method:'PUT',
+      headers:WR_HEADERS,
+      body:JSON.stringify({ropes:wrRopes})
+    });
+    return true;
+  } catch(e){ return false; }
+}
+
+// ── Tab switching ────────────────────────────────────────────────────────
+function wrTab(name){
+  ['calc','cat','add'].forEach(t => {
+    document.getElementById('wr-tab-'+t).style.display = t===name?'':'none';
+    const btn = document.getElementById('wr-tab-'+t+'-btn');
+    btn.style.color = t===name?'var(--blue)':'var(--muted)';
+    btn.style.borderBottomColor = t===name?'var(--blue)':'transparent';
+  });
+  if(name==='cat') wrRenderCatalog();
+}
+
+// ── Preset Dropdown ──────────────────────────────────────────────────────
+function wrBuildPreset(){
+  const sel = document.getElementById('wr-preset');
+  sel.innerHTML = '<option value="">— Aus Katalog wählen —</option>';
+  if(!wrRopes.length){ sel.innerHTML='<option value="">— Katalog leer —</option>'; return; }
+  const hersteller = [...new Set(wrRopes.map(r=>r.hersteller))];
+  hersteller.forEach(h => {
+    const grp = document.createElement('optgroup');
+    grp.label = h;
+    wrRopes.filter(r=>r.hersteller===h).forEach((r,_) => {
+      const idx = wrRopes.indexOf(r);
+      const o = document.createElement('option');
+      o.value = idx;
+      o.textContent = `${r.name} · ${r.litzen}×${r.draehte} · d${r.d}`;
+      grp.appendChild(o);
+    });
+    sel.appendChild(grp);
+  });
+}
+
+document.getElementById('wr-preset').addEventListener('change', function(){
+  const r = wrRopes[parseInt(this.value)];
+  if(!r) return;
+  document.getElementById('wr-litzen').value  = r.litzen;
+  document.getElementById('wr-draehte').value = r.draehte;
+  document.getElementById('wr-d').value       = r.d;
+  document.getElementById('wr-kf').value      = r.kf;
+  // Konstruktions-Dropdown zurücksetzen
+  const konstr = document.getElementById('wr-konstr');
+  const match = r.litzen+'|'+r.draehte;
+  let found = false;
+  for(let o of konstr.options){ if(o.value===match){ konstr.value=match; found=true; break; } }
+  if(!found) konstr.value='';
+  calcWireRope();
+});
+
+// ── Katalog rendern ──────────────────────────────────────────────────────
+function wrRenderCatalog(){
+  const loading = document.getElementById('wr-cat-loading');
+  const empty   = document.getElementById('wr-cat-empty');
+  const wrap    = document.getElementById('wr-cat-table-wrap');
+  const tbody   = document.getElementById('wr-cat-body');
+  loading.style.display = 'none';
+  if(!wrRopes.length){ empty.style.display=''; wrap.style.display='none'; return; }
+  empty.style.display='none'; wrap.style.display='';
+  tbody.innerHTML='';
+  wrRopes.forEach((r,i) => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border)';
+    tr.innerHTML = `
+      <td style="padding:6px 10px;color:var(--muted)">${r.hersteller}</td>
+      <td style="padding:6px 10px;font-weight:600;color:var(--navy)">${r.name}</td>
+      <td style="padding:6px 10px;text-align:center">${r.litzen}×${r.draehte}</td>
+      <td style="padding:6px 10px;text-align:center">${r.d}</td>
+      <td style="padding:6px 10px;text-align:center">${r.kf}</td>
+      <td style="padding:6px 10px;text-align:center">${r.fb||'–'}</td>
+      <td style="padding:6px 10px;text-align:center">${r.gew||'–'}</td>
+      <td style="padding:6px 10px"><button onclick="wrDeleteRope(${i})"
+        style="background:none;border:none;cursor:pointer;color:var(--rbd);font-size:13px">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Seil löschen ─────────────────────────────────────────────────────────
+async function wrDeleteRope(i){
+  if(!confirm('Seil "'+wrRopes[i].name+'" löschen?')) return;
+  wrRopes.splice(i,1);
+  const ok = await wrSaveRopes();
+  const st = document.getElementById('wr-sync-status');
+  st.textContent = ok ? '☁ Gespeichert' : '⚠ Fehler beim Speichern';
+  st.style.color = ok ? 'var(--green)' : 'var(--rbd)';
+  wrBuildPreset(); wrRenderCatalog();
+}
+
+// ── Seil speichern ────────────────────────────────────────────────────────
+async function wrSaveRope(){
+  const name = document.getElementById('wr-a-name').value.trim();
+  const msg  = document.getElementById('wr-save-msg');
+  if(!name){ msg.textContent='Bezeichnung eingeben!'; msg.style.color='var(--rbd)'; return; }
+
+  const fbVal  = parseFloat(document.getElementById('wr-a-fb').value);
+  const gewVal = parseFloat(document.getElementById('wr-a-gew').value);
+
+  const rope = {
+    hersteller: document.getElementById('wr-a-hersteller').value,
+    name,
+    litzen:  parseInt(document.getElementById('wr-a-litzen').value)||6,
+    draehte: parseInt(document.getElementById('wr-a-draehte').value)||19,
+    d:       parseFloat(document.getElementById('wr-a-d').value)||16,
+    kf:      parseFloat(document.getElementById('wr-a-kf').value)||7.0,
+    fb:      isNaN(fbVal)  ? null : fbVal,
+    gew:     isNaN(gewVal) ? null : gewVal,
+  };
+
+  const btn = document.getElementById('wr-save-btn');
+  btn.textContent = '⏳ Speichern...'; btn.disabled=true;
+  wrRopes.push(rope);
+  const ok = await wrSaveRopes();
+  btn.textContent = '💾 In Cloud speichern'; btn.disabled=false;
+
+  if(ok){
+    msg.textContent = '✅ Gespeichert!'; msg.style.color='var(--green)';
+    document.getElementById('wr-a-name').value='';
+    document.getElementById('wr-a-fb').value='–';
+    document.getElementById('wr-a-gew').value='–';
+    document.getElementById('wr-sync-status').textContent = '☁ '+wrRopes.length+' Seile';
+    document.getElementById('wr-sync-status').style.color = 'var(--green)';
+    wrBuildPreset();
+  } else {
+    wrRopes.pop();
+    msg.textContent = '⚠ Fehler — kein Internet?'; msg.style.color='var(--rbd)';
+  }
+  setTimeout(()=>msg.textContent='', 4000);
+}
+
+// ── Berechnung ────────────────────────────────────────────────────────────
+function wrGetVal(id){ const el=document.getElementById(id); if(!el) return null; const v=el.value||''; if(v==='–'||v.trim()===''||el.classList.contains('auto')) return null; const n=parseFloat(v.replace(',','.')); return isNaN(n)||n<=0?null:n; }
+function wrGetAny(id){ const el=document.getElementById(id); if(!el) return null; const v=el.value||''; if(v==='–'||v.trim()==='') return null; const n=parseFloat(v.replace(',','.')); return isNaN(n)||n<=0?null:n; }
+function wrSet(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
+function wrFmt(v,d=3){ if(!v||isNaN(v)) return '–'; return parseFloat(v.toPrecision(d+1)).toString(); }
+function wrSetAuto(id, value){
+  const el=document.getElementById(id); if(!el) return;
+  if(el.classList.contains('manual')) return; // nicht überschreiben wenn manuell
+  el.value = parseFloat(value.toPrecision(5)).toString();
+  el.classList.remove('empty'); el.classList.add('auto');
+}
+
+function calcWireRope(){
+  // Litzen/Drähte aus Eingabefeldern lesen (default 6/19)
+  const litzenRaw  = parseInt(document.getElementById('wr-litzen')?.value)||6;
+  const draehteRaw = parseInt(document.getElementById('wr-draehte')?.value)||19;
+  const litzen  = litzenRaw  > 0 ? litzenRaw  : 6;
+  const draehte = draehteRaw > 0 ? draehteRaw : 19;
+  const d       = wrGetVal('wr-d');
+  const kf      = parseFloat(document.getElementById('wr-kf').value)||7.0;
+  const v       = wrGetVal('wr-v');
+  const D       = wrGetVal('wr-D');
+
+  // Normwerte berechnen → grün setzen
+  if(d && litzen>0 && draehte>0){
+    const hL_norm = kf * d;
+    const dD_norm = (d * 0.4) / Math.sqrt(draehte);
+    const sinPhi  = Math.sin(Math.PI / litzen);
+    const dL_norm = d * sinPhi / (1 + sinPhi);
+    wrSetAuto('wr-hL', hL_norm);
+    wrSetAuto('wr-dD', dD_norm);
+    wrSetAuto('wr-dL', dL_norm);
+  }
+
+  // Aktuelle Werte lesen (manuell oder auto)
+  const hL = wrGetAny('wr-hL');
+
+  ['wr-total','wr-Dd','wr-nS','wr-fs','wr-fL','wr-fD'].forEach(id=>wrSet(id,'–'));
+  document.getElementById('wr-status').style.display='none';
+  document.getElementById('wr-formula').style.display='none';
+
+  if(!litzen||!draehte||!d) return;
+  wrSet('wr-total', litzen * draehte + '');
+
+  if(D){
+    const Dd = D/d;
+    const DdEl = document.getElementById('wr-Dd');
+    DdEl.textContent = Dd.toFixed(1);
+    DdEl.style.color = Dd>=25?'var(--green)':Dd>=16?'#b8860b':'var(--rbd)';
+    const st = document.getElementById('wr-status');
+    st.style.display='';
+    if(Dd>=25){
+      st.style.cssText='background:rgba(55,86,35,0.08);color:var(--green);border-left:3px solid var(--gd);border-radius:0 7px 7px 0;padding:6px 10px;font-size:11px';
+      document.getElementById('wr-status-text').textContent='✅ D/d = '+Dd.toFixed(1)+' — EN 12927 erfüllt (≥ 25)';
+    } else if(Dd>=16){
+      st.style.cssText='background:rgba(184,134,11,0.08);color:#b8860b;border-left:3px solid #b8860b;border-radius:0 7px 7px 0;padding:6px 10px;font-size:11px';
+      document.getElementById('wr-status-text').textContent='🟡 D/d = '+Dd.toFixed(1)+' — Grenzbereich (Min. = 16 nach EN 12927)';
+    } else {
+      st.style.cssText='background:rgba(192,0,0,0.08);color:var(--rbd);border-left:3px solid var(--rbd);border-radius:0 7px 7px 0;padding:6px 10px;font-size:11px';
+      document.getElementById('wr-status-text').textContent='⚠ D/d = '+Dd.toFixed(1)+' — Unterschreitung EN 12927!';
+    }
+  }
+
+  if(v && hL){
+    const nS  = D ? (v*60)/(Math.PI*D/1000) : null;
+    const hL_m = hL/1000;
+    const fs  = v/hL_m;
+    const fL  = fs*litzen;
+    const fD  = fL*draehte;
+    if(nS) wrSet('wr-nS', wrFmt(nS,4)+' 1/min');
+    wrSet('wr-fs', wrFmt(fs,4)+' Hz');
+    wrSet('wr-fL', wrFmt(fL,4)+' Hz');
+    wrSet('wr-fD', wrFmt(fD,4)+' Hz');
+    const isManual = document.getElementById('wr-hL')?.classList.contains('manual');
+    document.getElementById('wr-formula').style.display='';
+    document.getElementById('wr-formula-text').innerHTML =
+      `h_L = ${hL.toFixed(2)} mm ${isManual?'⚑ manuell eingegeben':'(Norm: k×d)'}<br>`+
+      `f_s = v/h_L = ${v}/${hL_m.toFixed(4)} = ${fs.toFixed(3)} Hz<br>`+
+      `f_L = f_s×n_L = ${fs.toFixed(3)}×${litzen} = ${fL.toFixed(3)} Hz<br>`+
+      `f_D = f_L×n_D = ${fL.toFixed(3)}×${draehte} = ${fD.toFixed(2)} Hz`;
+  }
+}
+
+// Konstruktionsauswahl → n_L und n_D grün setzen
+document.getElementById('wr-konstr').addEventListener('change', function(){
+  const val = this.value;
+  const litzenEl  = document.getElementById('wr-litzen');
+  const draehteEl = document.getElementById('wr-draehte');
+  if(!val){
+    // Manuell — Felder leeren für Eingabe
+    litzenEl.value=''; litzenEl.classList.remove('auto'); litzenEl.classList.add('empty');
+    draehteEl.value=''; draehteEl.classList.remove('auto'); draehteEl.classList.add('empty');
+    litzenEl.focus();
+    return;
+  }
+  const [nL, nD] = val.split('|').map(Number);
+  litzenEl.value  = nL; litzenEl.classList.remove('empty','manual'); litzenEl.classList.add('auto');
+  draehteEl.value = nD; draehteEl.classList.remove('empty','manual'); draehteEl.classList.add('auto');
+  calcWireRope();
+});
+
+// litzen/draehte: beim Antippen auto-Klasse entfernen
+['wr-litzen','wr-draehte'].forEach(id=>{
+  const el=document.getElementById(id); if(!el) return;
+  el.addEventListener('focus',()=>{
+    if(el.classList.contains('auto')){
+      el.value=''; el.classList.remove('auto'); el.classList.add('empty');
+      document.getElementById('wr-konstr').value=''; // Dropdown auf manuell
+    }
+  });
+  el.addEventListener('blur',()=>{
+    if(el.value.trim()===''||el.value==='–') el.classList.add('empty');
+  });
+});
+
+// Events
+['wr-kf'].forEach(id=>document.getElementById(id).addEventListener('change',calcWireRope));
+['wr-litzen','wr-draehte','wr-d','wr-v','wr-D'].forEach(id=>{
+  const el=document.getElementById(id); if(!el) return;
+  el.addEventListener('input',calcWireRope);
+});
+
+// hL, dD, dL: beim Antippen manuell markieren, beim Leeren wieder auto
+['wr-hL','wr-dD','wr-dL'].forEach(id=>{
+  const el=document.getElementById(id); if(!el) return;
+  el.addEventListener('focus', ()=>{
+    if(el.classList.contains('auto')){
+      el.value=''; el.classList.remove('auto'); el.classList.add('manual','empty');
+    }
+  });
+  el.addEventListener('blur', ()=>{
+    if(el.value.trim()===''||el.value==='–'){
+      el.classList.remove('manual');
+      calcWireRope(); // Normwert wieder setzen
+    }
+  });
+  el.addEventListener('input', calcWireRope);
+});
+
+// initDashField nach DOM-Load
+document.addEventListener('DOMContentLoaded', function(){
+  ['wr-litzen','wr-draehte','wr-d','wr-v','wr-D'].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    if(typeof initDashField==='function') initDashField(el);
+  });
+});
+
+// Initial laden
+wrLoadRopes();
+</script>
 
 <!-- ══ TOOL: SEILROLLENFUTTER ════════════════════════════════════════════ -->
 <div id="tool-sheave" class="tool-panel">
