@@ -1863,7 +1863,7 @@ wrLoadRopes();
         <div class="ir">
           <div class="il">Kalibrierungsoffset<small>Gerätekompensation (±dB)</small></div>
           <span class="iu">dB</span>
-          <input id="dba-offset" type="number" class="if" value="0" min="-20" max="20" step="0.5" style="width:80px">
+          <input id="dba-offset" type="number" class="if" value="0" min="-30" max="60" step="0.5" style="width:80px">
         </div>
         <div class="ir">
           <div class="il">Verlaufsdauer<small>Anzahl Messpunkte im Diagramm</small></div>
@@ -2135,24 +2135,29 @@ function dbaBuildFftChart() {
 
 // ── Oktavband-Pegel aus FFT-Daten ────────────────────────────────────────
 function dbaCalcOctaveBands(freqData, sampleRate, fftSize) {
+  const offset = parseFloat(document.getElementById('dba-offset').value) || 0;
+  const CAL_OFFSET = 85 + offset; // gleicher Offset wie Gesamtpegel inkl. Benutzer-Offset
   const binHz = sampleRate / fftSize;
   const results = DBA_OCT_BANDS.map(band => {
     const fcLow  = band.fc / Math.SQRT2;
     const fcHigh = band.fc * Math.SQRT2;
-    let sumPower = 0;
+    let maxVal = -160;
     let count = 0;
     for (let i = 0; i < freqData.length; i++) {
       const f = i * binHz;
       if (f >= fcLow && f < fcHigh) {
-        const linearPow = Math.pow(10, freqData[i] / 10);
-        sumPower += linearPow;
-        count++;
+        const v = freqData[i];
+        if (v > -160 && !isNaN(v) && v !== -Infinity) {
+          if (v > maxVal) maxVal = v;
+          count++;
+        }
       }
     }
-    const dBZ = count > 0 ? 10 * Math.log10(sumPower / count + 1e-10) : -100;
+    const dBZ_raw = count > 0 ? maxVal + CAL_OFFSET : 0;
     const aCorr = aWeightingDB(band.fc);
-    const dBA = dBZ + aCorr;
-    return { dBZ: Math.max(0, dBZ), dBA: Math.max(0, dBA), aCorr: aCorr.toFixed(1) };
+    const dBZ = Math.max(0, dBZ_raw);
+    const dBA = Math.max(0, dBZ_raw + aCorr);
+    return { dBZ, dBA, aCorr: aCorr.toFixed(1) };
   });
   return results;
 }
@@ -2189,22 +2194,31 @@ function dbaLoop() {
   const weighting  = document.getElementById('dba-weighting').value;
   const offset     = parseFloat(document.getElementById('dba-offset').value) || 0;
 
-  // Gesamtpegel berechnen (Energiemittelung über alle Bins)
-  let sumPower = 0;
+  // Gesamtpegel: Maximum über alle Bins (robuster als Energiemittelung)
+  let maxDBz = -160;
   let domFreq = 0, domPow = -Infinity;
+  let validCount = 0;
+  let sumPower = 0;
+
   for (let i = 1; i < freqData.length; i++) {
     const f = i * binHz;
     if (f < 20 || f > 20000) continue;
     const dBz = freqData[i];
-    if (dBz === -Infinity || isNaN(dBz)) continue;
+    if (dBz === -Infinity || isNaN(dBz) || dBz < -160) continue;
     const aCorr = weighting === 'A' ? aWeightingDB(f) : 0;
     const dBweighted = dBz + aCorr;
     sumPower += Math.pow(10, dBweighted / 10);
+    validCount++;
+    if (dBz > maxDBz) maxDBz = dBz;
     if (dBz > domPow) { domPow = dBz; domFreq = f; }
   }
 
-  const rawDB   = 10 * Math.log10(sumPower + 1e-30) + offset;
-  const level   = Math.max(20, Math.min(115, rawDB));
+  // Verwende den Peak-Wert als Basis (typisch für Schallpegelmesser)
+  // Normalisierung: Browser liefert typisch -100 bis 0 dBFS
+  // Kalibrierung auf ungefähre dB(A) Skala: +85 dB Offset (Referenz)
+  const CAL_OFFSET = 85;
+  const rawDB = maxDBz + CAL_OFFSET + offset;
+  const level = Math.max(20, Math.min(115, rawDB));
   dbaLastLevel  = level;
 
   // Min/Max/Leq
@@ -2263,6 +2277,8 @@ function dbaLoop() {
   const bands = dbaCalcOctaveBands(freqData, sampleRate, fftSize);
   dbaUpdateOctTable(bands);
 
+  // FFT Chart bei Bedarf nachträglich initialisieren (Mobile)
+  if (!dbaFftInst) dbaBuildFftChart();
   if (dbaFftInst) {
     dbaFftInst.data.datasets[0].data = bands.map(b =>
       weighting === 'A' ? parseFloat(b.dBA.toFixed(1)) : parseFloat(b.dBZ.toFixed(1))
@@ -2294,19 +2310,35 @@ document.getElementById('dba-start-btn').addEventListener('click', async () => {
     dbaMicStatus().textContent = 'MIKROFON…';
     dbaMicStatus().style.color = 'var(--blue)';
     try {
-      dbaStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false }
-      });
-      dbaAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      // Versuche zuerst ohne Einschränkungen (bessere Kompatibilität mobile)
+      try {
+        dbaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch(e1) {
+        dbaStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false }
+        });
+      }
+      // AudioContext — auf iOS muss er nach User-Gesture erstellt werden
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      dbaAudioCtx = new AudioCtx();
+      // iOS Safari: Context muss resumed werden
+      if (dbaAudioCtx.state === 'suspended') {
+        await dbaAudioCtx.resume();
+      }
       const source = dbaAudioCtx.createMediaStreamSource(dbaStream);
       dbaAnalyser  = dbaAudioCtx.createAnalyser();
       dbaAnalyser.fftSize = 2048;
-      dbaAnalyser.smoothingTimeConstant = 0.7;
+      dbaAnalyser.smoothingTimeConstant = 0.5;
+      dbaAnalyser.minDecibels = -120;
+      dbaAnalyser.maxDecibels = 0;
+      // Direkt verbinden ohne Gain — einfacher = robuster auf Mobile
       source.connect(dbaAnalyser);
 
-      // Charts initialisieren wenn noch nicht vorhanden
-      if (!dbaChartInst) dbaBuildHistoryChart();
-      if (!dbaFftInst)   dbaBuildFftChart();
+      // Charts initialisieren — mit kurzem Delay damit DOM bereit ist
+      setTimeout(() => {
+        if (!dbaChartInst) dbaBuildHistoryChart();
+        if (!dbaFftInst)   dbaBuildFftChart();
+      }, 200);
 
       dbaRunning = true;
       dbaBtnIcon().textContent  = '⏹';
@@ -2326,7 +2358,7 @@ document.getElementById('dba-start-btn').addEventListener('click', async () => {
       const isLocal = location.protocol === 'file:' || location.protocol === 'content:';
       const errMsg = isLocal
         ? '<b>⚠ Lokale Datei — kein Mikrofon-Zugriff möglich.</b><br>Bitte die Datei über <b>GitHub Pages</b> (HTTPS) öffnen, nicht direkt vom Gerät.'
-        : '<b>⚠ Mikrofon-Berechtigung verweigert.</b><br>In den Browser-Einstellungen den Mikrofon-Zugriff erlauben.<br><small style="opacity:.7">Fehler: ' + err.message + '</small>';
+        : '<b>⚠ Fehler: ' + err.name + '</b><br>' + err.message + '<br><small>Protokoll: ' + location.protocol + ' · Browser: ' + navigator.userAgent.substring(0,80) + '</small>';
       const infoBox = document.querySelector('#tool-dba .info-box');
       if (infoBox) {
         infoBox.style.background = 'var(--rbg)';
