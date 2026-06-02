@@ -1,23 +1,28 @@
-const CACHE = 'eikcalc-v5';
+const CACHE = 'eikcalc-v6';
 const FILES = ['./index.html','./manifest.json','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
   self.skipWaiting();
 });
+
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))
+    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
   ));
   self.clients.claim();
 });
+
 self.addEventListener('fetch', e => {
-  // Network first, then cache — ensures always latest version
+  // Network-First: immer vom Server laden, Cache nur als Fallback
   e.respondWith(
-    fetch(e.request).then(r => {
-      const clone = r.clone();
-      caches.open(CACHE).then(c => c.put(e.request, clone));
-      return r;
-    }).catch(() => caches.match(e.request))
+    fetch(e.request, {cache: 'no-cache'})
+      .then(r => {
+        // Erfolgreiche Antwort im Cache speichern
+        const clone = r.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return r;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
