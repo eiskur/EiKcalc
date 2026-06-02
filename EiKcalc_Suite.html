@@ -1014,13 +1014,15 @@ canvas#chart{width:100%!important;height:220px!important}
   </div>
 
   <!-- Tabs -->
-  <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border)">
+  <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:4px">
     <button id="wr-tab-calc-btn" onclick="wrTab('calc')" style="padding:8px 16px;font-family:'Barlow',sans-serif;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--blue);border-bottom:2px solid var(--blue);margin-bottom:-2px">Berechnung</button>
     <button id="wr-tab-cat-btn" onclick="wrTab('cat')" style="padding:8px 16px;font-family:'Barlow',sans-serif;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">Seilkatalog</button>
-    <button id="wr-tab-add-btn" onclick="wrTab('add')" style="padding:8px 16px;font-family:'Barlow',sans-serif;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">+ Seil hinzufügen</button>
-    <div style="flex:1"></div>
-    <div id="wr-sync-status" style="padding:6px 12px;font-size:10px;color:var(--muted);align-self:center">⏳ Verbinde...</div>
-    <button onclick="wrSetupToken()" style="padding:4px 10px;font-size:10px;font-family:'Barlow',sans-serif;background:none;border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--muted)">🔑 Token</button>
+    <button id="wr-tab-add-btn" onclick="wrTab('add')" style="padding:8px 16px;font-family:'Barlow',sans-serif;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">+ Hinzufügen</button>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding:4px 0">
+    <span id="wr-sync-status" style="font-size:10px;color:var(--muted)">⏳ Verbinde...</span>
+    <button onclick="wrSetupToken()" style="padding:5px 12px;font-size:11px;font-family:'Barlow',sans-serif;background:var(--surf);border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--blue);font-weight:600">🔑 GitHub Token</button>
+  </div>
   </div>
 
   <!-- TAB: BERECHNUNG -->
