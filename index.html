@@ -1178,6 +1178,7 @@ canvas#chart{width:100%!important;height:220px!important}
             <th style="padding:7px 10px;text-align:center;color:var(--muted);font-weight:700;font-size:10px">d [mm]</th>
             <th style="padding:7px 10px;text-align:center;color:var(--muted);font-weight:700;font-size:10px">k</th>
             <th style="padding:7px 10px;text-align:center;color:var(--muted);font-weight:700;font-size:10px">F_B [kN]</th>
+            <th style="padding:7px 10px;text-align:center;color:var(--muted);font-weight:700;font-size:10px">h_L [mm]</th>
             <th style="padding:7px 10px;text-align:center;color:var(--muted);font-weight:700;font-size:10px">kg/m</th>
             <th style="padding:7px 10px"></th>
           </tr>
@@ -1256,6 +1257,11 @@ canvas#chart{width:100%!important;height:220px!important}
         <div class="il">Bruchkraft <b>F_B</b><small>optional</small></div>
         <span class="iu">kN</span>
         <input id="wr-a-fb" type="text" inputmode="decimal" class="if empty" value="–">
+      </div>
+      <div class="ir">
+        <div class="il">Schlaglänge <b>h_L</b><small>optional · gemessen</small></div>
+        <span class="iu">mm</span>
+        <input id="wr-a-hl" type="text" inputmode="decimal" class="if empty" value="–">
       </div>
       <div class="ir">
         <div class="il">Gewicht<small>optional</small></div>
@@ -1401,6 +1407,12 @@ document.getElementById('wr-preset').addEventListener('change', function(){
   document.getElementById('wr-draehte').value = r.draehte;
   document.getElementById('wr-d').value       = r.d;
   document.getElementById('wr-kf').value      = r.kf;
+  // Gespeicherte Schlaglänge übernehmen wenn vorhanden
+  if(r.hl){
+    const hlEl = document.getElementById('wr-hL');
+    hlEl.value = r.hl;
+    hlEl.classList.remove('auto','empty'); hlEl.classList.add('manual');
+  }
   // Konstruktions-Dropdown zurücksetzen
   const konstr = document.getElementById('wr-konstr');
   const match = r.litzen+'|'+r.draehte;
@@ -1432,6 +1444,7 @@ function wrRenderCatalog(){
       <td style="padding:6px 10px;text-align:center">${r.d}</td>
       <td style="padding:6px 10px;text-align:center">${r.kf}</td>
       <td style="padding:6px 10px;text-align:center">${r.fb||'–'}</td>
+      <td style="padding:6px 10px;text-align:center">${r.hl||'–'}</td>
       <td style="padding:6px 10px;text-align:center">${r.gew||'–'}</td>
       <td style="padding:6px 6px;white-space:nowrap">
         <button onclick="wrEditRope(${i})" style="background:none;border:none;cursor:pointer;color:var(--blue);font-size:13px;margin-right:4px" title="Bearbeiten">✏</button>
@@ -1459,6 +1472,7 @@ function wrEditRope(i){
   document.getElementById('wr-a-d').value          = r.d;
   document.getElementById('wr-a-kf').value         = r.kf;
   document.getElementById('wr-a-fb').value         = r.fb||'–';
+  document.getElementById('wr-a-hl').value         = r.hl||'–';
   document.getElementById('wr-a-gew').value        = r.gew||'–';
 
   // Konstruktions-Dropdown anpassen
@@ -1494,6 +1508,7 @@ async function wrSaveRope(){
 
   const fbVal  = parseFloat(document.getElementById('wr-a-fb').value.replace(',','.'));
   const gewVal = parseFloat(document.getElementById('wr-a-gew').value.replace(',','.'));
+  const hlVal  = parseFloat(document.getElementById('wr-a-hl').value.replace(',','.'));
 
   const rope = {
     hersteller: document.getElementById('wr-a-hersteller').value,
@@ -1503,6 +1518,7 @@ async function wrSaveRope(){
     d:       parseFloat(document.getElementById('wr-a-d').value.replace(',','.'))||16,
     kf:      parseFloat(document.getElementById('wr-a-kf').value)||7.0,
     fb:      isNaN(fbVal)  ? null : Math.round(fbVal*100)/100,
+    hl:      isNaN(hlVal)  ? null : Math.round(hlVal*100)/100,
     gew:     isNaN(gewVal) ? null : Math.round(gewVal*1000)/1000,
   };
 
@@ -1525,6 +1541,7 @@ async function wrSaveRope(){
     // Formular zurücksetzen
     document.getElementById('wr-a-name').value='';
     document.getElementById('wr-a-fb').value='–';
+    document.getElementById('wr-a-hl').value='–';
     document.getElementById('wr-a-gew').value='–';
     document.getElementById('wr-a-konstr').value='';
     wrEditIndex = -1;
