@@ -1290,6 +1290,11 @@ let wrRopes = [];
 let wrFileSha = '';
 
 function wrGetToken(){ return localStorage.getItem(WR_TOKEN_KEY)||''; }
+function wrAuthHeader(token){
+  // Fine-grained tokens brauchen Bearer, classic tokens token
+  if(token.startsWith('github_pat_')) return 'Bearer '+token;
+  return 'token '+token;
+}
 
 // ── Token Eingabe Dialog ──────────────────────────────────────────────────
 function wrShowTokenDialog(){
@@ -1316,7 +1321,7 @@ async function wrLoadRopes(){
     const token = wrGetToken();
     if(token){
       const r2 = await fetch(WR_API, {headers:{
-        'Authorization':'token '+token,
+        'Authorization':wrAuthHeader(token),
         'User-Agent':'EiKcalc'
       }});
       if(r2.ok){ const j2=await r2.json(); wrFileSha=j2.sha||''; }
@@ -1339,7 +1344,7 @@ async function wrSaveRopes(){
   try {
     // SHA aktuell holen falls noch nicht vorhanden
     if(!wrFileSha){
-      const r0 = await fetch(WR_API, {headers:{'Authorization':'token '+token,'User-Agent':'EiKcalc'}});
+      const r0 = await fetch(WR_API, {headers:{'Authorization':wrAuthHeader(token),'User-Agent':'EiKcalc'}});
       if(r0.ok){ const j0=await r0.json(); wrFileSha=j0.sha||''; }
     }
     const content = btoa(unescape(encodeURIComponent(JSON.stringify({ropes:wrRopes},null,2))));
@@ -1643,7 +1648,7 @@ function calcWireRope(){
 function wrSetupToken(){
   const cur = wrGetToken();
   const t = prompt('GitHub Personal Access Token eingeben:\n(wird nur lokal im Browser gespeichert)', cur||'ghp_...');
-  if(t && t.trim().startsWith('ghp_')){
+  if(t && (t.trim().startsWith('ghp_') || t.trim().startsWith('github_pat_'))){
     localStorage.setItem(WR_TOKEN_KEY, t.trim());
     const st=document.getElementById('wr-sync-status');
     st.textContent='✅ Token gespeichert';
