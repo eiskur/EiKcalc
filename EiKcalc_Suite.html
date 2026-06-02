@@ -1020,6 +1020,7 @@ canvas#chart{width:100%!important;height:220px!important}
     <button id="wr-tab-add-btn" onclick="wrTab('add')" style="padding:8px 16px;font-family:'Barlow',sans-serif;font-size:12px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">+ Seil hinzufügen</button>
     <div style="flex:1"></div>
     <div id="wr-sync-status" style="padding:6px 12px;font-size:10px;color:var(--muted);align-self:center">⏳ Verbinde...</div>
+    <button onclick="wrSetupToken()" style="padding:4px 10px;font-size:10px;font-family:'Barlow',sans-serif;background:none;border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--muted)">🔑 Token</button>
   </div>
 
   <!-- TAB: BERECHNUNG -->
@@ -1186,64 +1187,78 @@ canvas#chart{width:100%!important;height:220px!important}
 
   <!-- TAB: HINZUFÜGEN -->
   <div id="wr-tab-add" style="display:none">
-    <div class="crd" style="margin-bottom:14px">
+      <div class="crd" style="margin-bottom:14px">
       <div class="sec" style="margin:0 0 10px">Neues Seil eintragen</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
-        <div class="ir">
-          <div class="il">Hersteller</div>
-          <div class="sw">
-            <select class="is" id="wr-a-hersteller">
-              <option>Fatzer</option>
-              <option>Teufelberger</option>
-              <option>Redaelli</option>
-              <option>Bridon</option>
-              <option>WireCo</option>
-              <option>Sonstiger</option>
-            </select>
-          </div>
+      <div class="ir">
+        <div class="il">Hersteller</div>
+        <div class="sw">
+          <select class="is" id="wr-a-hersteller">
+            <option>Fatzer</option>
+            <option>Teufelberger</option>
+            <option>Redaelli</option>
+            <option>Bridon</option>
+            <option>WireCo</option>
+            <option>Sonstiger</option>
+          </select>
         </div>
-        <div class="ir">
-          <div class="il">Bezeichnung</div>
-          <span class="iu"></span>
-          <input id="wr-a-name" type="text" class="if" placeholder="z.B. CASAR Turboplast" style="font-size:12px">
+      </div>
+      <div class="ir">
+        <div class="il">Bezeichnung<small>z.B. CASAR Turboplast</small></div>
+        <span class="iu"></span>
+        <input id="wr-a-name" type="text" class="if" placeholder="Bezeichnung" style="font-size:12px">
+      </div>
+      <div class="ir">
+        <div class="il">Konstruktion</div>
+        <div class="sw">
+          <select class="is" id="wr-a-konstr" style="min-width:100%;max-width:100%" onchange="wrFillKonstr()">
+            <option value="">— manuell —</option>
+            <option value="6|19">6×19S-IWRC</option>
+            <option value="6|25">6×25F-IWRC</option>
+            <option value="6|36">6×36WS-IWRC</option>
+            <option value="8|19">8×19S-IWRC</option>
+            <option value="6|37">6×37-IWRC</option>
+            <option value="18|7">18×7</option>
+            <option value="35|7">35×7</option>
+            <option value="6|7">6×7</option>
+          </select>
         </div>
-        <div class="ir">
-          <div class="il">Litzen <b>n_L</b></div>
-          <span class="iu">–</span>
-          <input id="wr-a-litzen" type="text" inputmode="decimal" class="if" value="6">
+      </div>
+      <div class="ir">
+        <div class="il">Litzen <b>n_L</b></div>
+        <span class="iu">–</span>
+        <input id="wr-a-litzen" type="text" inputmode="decimal" class="if" value="6">
+      </div>
+      <div class="ir">
+        <div class="il">Drähte/Litze <b>n_D</b></div>
+        <span class="iu">–</span>
+        <input id="wr-a-draehte" type="text" inputmode="decimal" class="if" value="19">
+      </div>
+      <div class="ir">
+        <div class="il">Nenndurchm. <b>d</b></div>
+        <span class="iu">mm</span>
+        <input id="wr-a-d" type="text" inputmode="decimal" class="if" value="16">
+      </div>
+      <div class="ir">
+        <div class="il">Schlagfaktor <b>k</b></div>
+        <div class="sw">
+          <select class="is" id="wr-a-kf">
+            <option value="6.0">6.0</option>
+            <option value="6.5">6.5</option>
+            <option value="7.0" selected>7.0</option>
+            <option value="7.5">7.5</option>
+            <option value="8.0">8.0</option>
+          </select>
         </div>
-        <div class="ir">
-          <div class="il">Drähte/Litze <b>n_D</b></div>
-          <span class="iu">–</span>
-          <input id="wr-a-draehte" type="text" inputmode="decimal" class="if" value="19">
-        </div>
-        <div class="ir">
-          <div class="il">Nenndurchm. <b>d</b></div>
-          <span class="iu">mm</span>
-          <input id="wr-a-d" type="text" inputmode="decimal" class="if" value="16">
-        </div>
-        <div class="ir">
-          <div class="il">Schlagfaktor <b>k</b></div>
-          <div class="sw">
-            <select class="is" id="wr-a-kf">
-              <option value="6.0">6.0</option>
-              <option value="6.5">6.5</option>
-              <option value="7.0" selected>7.0</option>
-              <option value="7.5">7.5</option>
-              <option value="8.0">8.0</option>
-            </select>
-          </div>
-        </div>
-        <div class="ir">
-          <div class="il">Bruchkraft <b>F_B</b><small>optional</small></div>
-          <span class="iu">kN</span>
-          <input id="wr-a-fb" type="text" inputmode="decimal" class="if empty" value="–">
-        </div>
-        <div class="ir">
-          <div class="il">Gewicht<small>optional</small></div>
-          <span class="iu">kg/m</span>
-          <input id="wr-a-gew" type="text" inputmode="decimal" class="if empty" value="–">
-        </div>
+      </div>
+      <div class="ir">
+        <div class="il">Bruchkraft <b>F_B</b><small>optional</small></div>
+        <span class="iu">kN</span>
+        <input id="wr-a-fb" type="text" inputmode="decimal" class="if empty" value="–">
+      </div>
+      <div class="ir">
+        <div class="il">Gewicht<small>optional</small></div>
+        <span class="iu">kg/m</span>
+        <input id="wr-a-gew" type="text" inputmode="decimal" class="if empty" value="–">
       </div>
       <div style="padding:10px 14px;display:flex;align-items:center;gap:12px">
         <button id="wr-save-btn" onclick="wrSaveRope()" style="background:var(--navy);color:#fff;border:none;border-radius:7px;padding:9px 22px;font-family:'Barlow',sans-serif;font-size:13px;font-weight:700;cursor:pointer">💾 In Cloud speichern</button>
@@ -1257,30 +1272,49 @@ canvas#chart{width:100%!important;height:220px!important}
 
 <!-- ══ Stahlseil Script ════════════════════════════════════════════════════ -->
 <script>
-const WR_TOKEN = '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';
 const WR_REPO  = 'eiskur/EiKcalc';
 const WR_FILE  = 'ropes.json';
 const WR_API   = `https://api.github.com/repos/${WR_REPO}/contents/${WR_FILE}`;
 const WR_RAW   = `https://raw.githubusercontent.com/${WR_REPO}/main/${WR_FILE}`;
+const WR_TOKEN_KEY = 'eikcalc_gh_token';
 
 let wrRopes = [];
 let wrFileSha = '';
+
+function wrGetToken(){ return localStorage.getItem(WR_TOKEN_KEY)||''; }
+
+// ── Token Eingabe Dialog ──────────────────────────────────────────────────
+function wrShowTokenDialog(){
+  const cur = wrGetToken();
+  const t = prompt('GitHub Token eingeben (wird lokal gespeichert, nie hochgeladen):', cur||'ghp_...');
+  if(t && t.startsWith('ghp_')){
+    localStorage.setItem(WR_TOKEN_KEY, t);
+    return t;
+  }
+  return null;
+}
 
 // ── Cloud laden ──────────────────────────────────────────────────────────
 async function wrLoadRopes(){
   const st = document.getElementById('wr-sync-status');
   try {
     const r = await fetch(WR_RAW + '?t=' + Date.now());
+    if(!r.ok) throw new Error('HTTP '+r.status);
     const j = await r.json();
     wrRopes = j.ropes || [];
     st.textContent = '☁ ' + wrRopes.length + ' Seile geladen';
     st.style.color = 'var(--green)';
-    // SHA für späteres Update laden
-    const r2 = await fetch(WR_API, {headers:{'Authorization':'token '+WR_TOKEN,'User-Agent':'EiKcalc'}});
-    const j2 = await r2.json();
-    wrFileSha = j2.sha || '';
+    // SHA für Update holen
+    const token = wrGetToken();
+    if(token){
+      const r2 = await fetch(WR_API, {headers:{
+        'Authorization':'token '+token,
+        'User-Agent':'EiKcalc'
+      }});
+      if(r2.ok){ const j2=await r2.json(); wrFileSha=j2.sha||''; }
+    }
   } catch(e) {
-    st.textContent = '⚠ Offline — kein Cloud-Zugriff';
+    st.textContent = '⚠ Offline — kein Zugriff';
     st.style.color = 'var(--muted)';
   }
   wrBuildPreset();
@@ -1289,22 +1323,38 @@ async function wrLoadRopes(){
 
 // ── Cloud speichern ──────────────────────────────────────────────────────
 async function wrSaveRopes(){
+  let token = wrGetToken();
+  if(!token){
+    token = wrShowTokenDialog();
+    if(!token) return false;
+  }
   try {
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify({ropes:wrRopes}, null, 2))));
-    const body = {
-      message: 'EiKcalc: Seile aktualisiert',
-      content: content,
-      sha: wrFileSha
-    };
+    // SHA aktuell holen falls noch nicht vorhanden
+    if(!wrFileSha){
+      const r0 = await fetch(WR_API, {headers:{'Authorization':'token '+token,'User-Agent':'EiKcalc'}});
+      if(r0.ok){ const j0=await r0.json(); wrFileSha=j0.sha||''; }
+    }
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify({ropes:wrRopes},null,2))));
     const r = await fetch(WR_API, {
       method: 'PUT',
       headers: {
-        'Authorization': 'token ' + WR_TOKEN,
+        'Authorization': 'token '+token,
         'Content-Type': 'application/json',
         'User-Agent': 'EiKcalc'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify({
+        message: 'EiKcalc: Seile aktualisiert',
+        content: content,
+        sha: wrFileSha
+      })
     });
+    if(r.status===401||r.status===403){
+      localStorage.removeItem(WR_TOKEN_KEY);
+      const st=document.getElementById('wr-sync-status');
+      st.textContent='⚠ Token ungültig — bitte neu eingeben';
+      st.style.color='var(--rbd)';
+      return false;
+    }
     const j = await r.json();
     wrFileSha = j.content?.sha || wrFileSha;
     return r.ok;
@@ -1518,6 +1568,29 @@ function calcWireRope(){
       `f_L = f_s×n_L = ${fs.toFixed(3)}×${litzen} = ${fL.toFixed(3)} Hz<br>`+
       `f_D = f_L×n_D = ${fL.toFixed(3)}×${draehte} = ${fD.toFixed(2)} Hz`;
   }
+}
+
+function wrSetupToken(){
+  const cur = wrGetToken();
+  const t = prompt('GitHub Personal Access Token eingeben:\n(wird nur lokal im Browser gespeichert)', cur||'ghp_...');
+  if(t && t.trim().startsWith('ghp_')){
+    localStorage.setItem(WR_TOKEN_KEY, t.trim());
+    const st=document.getElementById('wr-sync-status');
+    st.textContent='✅ Token gespeichert';
+    st.style.color='var(--green)';
+    wrLoadRopes();
+  } else if(t !== null){
+    alert('Ungültiger Token — muss mit ghp_ beginnen');
+  }
+}
+
+// Konstruktionsauswahl im Add-Formular
+function wrFillKonstr(){
+  const val = document.getElementById('wr-a-konstr').value;
+  if(!val) return;
+  const [nL,nD] = val.split('|').map(Number);
+  document.getElementById('wr-a-litzen').value = nL;
+  document.getElementById('wr-a-draehte').value = nD;
 }
 
 // Konstruktionsauswahl → n_L und n_D grün setzen
