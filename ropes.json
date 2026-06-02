@@ -1,1 +1,14 @@
-{"ropes": []}
+{
+  "ropes": [
+    {
+      "hersteller": "Fatzer",
+      "name": "Testseil",
+      "litzen": 6,
+      "draehte": 19,
+      "d": 55,
+      "kf": 7,
+      "fb": 1263,
+      "gew": 4
+    }
+  ]
+}
