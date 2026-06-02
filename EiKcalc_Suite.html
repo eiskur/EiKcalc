@@ -2134,27 +2134,29 @@ function dbaBuildFftChart() {
 }
 
 // ── Oktavband-Pegel aus FFT-Daten ────────────────────────────────────────
-function dbaCalcOctaveBands(freqData, sampleRate, fftSize) {
-  const offset = parseFloat(document.getElementById('dba-offset').value) || 0;
-  const CAL_OFFSET = 85 + offset; // gleicher Offset wie Gesamtpegel inkl. Benutzer-Offset
+function dbaCalcOctaveBands(freqData, sampleRate, fftSize, userOffset) {
+  const CAL_OFFSET = 85 + (userOffset || 0); // gleicher Offset wie Gesamtpegel inkl. Benutzer-Offset
   const binHz = sampleRate / fftSize;
   const results = DBA_OCT_BANDS.map(band => {
-    const fcLow  = band.fc / Math.SQRT2;
+    const fcLow  = Math.max(band.fc / Math.SQRT2, 20); // min 20 Hz
     const fcHigh = band.fc * Math.SQRT2;
     let maxVal = -160;
     let count = 0;
-    for (let i = 0; i < freqData.length; i++) {
+    for (let i = 1; i < freqData.length; i++) { // i=1: DC-Bin überspringen
       const f = i * binHz;
       if (f >= fcLow && f < fcHigh) {
         const v = freqData[i];
-        if (v > -160 && !isNaN(v) && v !== -Infinity) {
+        if (v > -155 && !isNaN(v) && v !== -Infinity) {
           if (v > maxVal) maxVal = v;
           count++;
         }
       }
     }
-    const dBZ_raw = count > 0 ? maxVal + CAL_OFFSET : 0;
     const aCorr = aWeightingDB(band.fc);
+    if (count === 0 || maxVal <= -160) {
+      return { dBZ: 0, dBA: 0, aCorr: aCorr.toFixed(1) };
+    }
+    const dBZ_raw = maxVal + CAL_OFFSET;
     const dBZ = Math.max(0, dBZ_raw);
     const dBA = Math.max(0, dBZ_raw + aCorr);
     return { dBZ, dBA, aCorr: aCorr.toFixed(1) };
@@ -2273,8 +2275,8 @@ function dbaLoop() {
     dbaChartInst.update('none');
   }
 
-  // FFT Oktavbänder
-  const bands = dbaCalcOctaveBands(freqData, sampleRate, fftSize);
+  // FFT Oktavbänder — Offset direkt übergeben
+  const bands = dbaCalcOctaveBands(freqData, sampleRate, fftSize, offset);
   dbaUpdateOctTable(bands);
 
   // FFT Chart bei Bedarf nachträglich initialisieren (Mobile)
