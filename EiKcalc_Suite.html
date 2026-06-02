@@ -2537,15 +2537,16 @@ function initDashField(el) {
   el.addEventListener("blur", () => {
     if(el.value.trim() === ""){ el.value = "–"; el.classList.add("empty"); }
   });
+  // keypress: nur Zahlen/Komma/Punkt/Minus erlauben
   el.addEventListener("keypress", e => {
-    if(!/[\d.,\-]/.test(e.key) && !e.ctrlKey) e.preventDefault();
+    if(e.key && e.key.length===1 && !/[\d.,\-]/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault();
   });
 }
 
 // Global: alle .if Felder beim Klick/Touch sofort markieren
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("input.if").forEach(el => {
-    el.addEventListener("mouseup", e => { e.preventDefault(); el.select(); });
+    el.addEventListener("mouseup", () => { el.select(); });
     el.addEventListener("touchend", e => { setTimeout(()=>el.select(),0); });
   });
 });
