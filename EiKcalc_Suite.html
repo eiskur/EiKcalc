@@ -2293,6 +2293,23 @@ function dbaLoop() {
 }
 
 // ── Start/Stop ─────────────────────────────────────────────────────────────
+// ── Offset aus localStorage laden ────────────────────────────────────────
+(function() {
+  const saved = localStorage.getItem('dba_offset');
+  if (saved !== null) {
+    const el = document.getElementById('dba-offset');
+    if (el) el.value = saved;
+  }
+})();
+
+// ── Offset speichern wenn geändert ───────────────────────────────────────
+document.getElementById('dba-offset').addEventListener('change', function() {
+  localStorage.setItem('dba_offset', this.value);
+});
+document.getElementById('dba-offset').addEventListener('input', function() {
+  localStorage.setItem('dba_offset', this.value);
+});
+
 document.getElementById('dba-start-btn').addEventListener('click', async () => {
   if (dbaRunning) {
     // Stoppen
