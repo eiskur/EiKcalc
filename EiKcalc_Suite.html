@@ -1411,6 +1411,8 @@ document.getElementById('wr-preset').addEventListener('change', function(){
 });
 
 // ── Katalog rendern ──────────────────────────────────────────────────────
+let wrEditIndex = -1; // -1 = neues Seil, ≥0 = bearbeiten
+
 function wrRenderCatalog(){
   const loading = document.getElementById('wr-cat-loading');
   const empty   = document.getElementById('wr-cat-empty');
@@ -1431,10 +1433,46 @@ function wrRenderCatalog(){
       <td style="padding:6px 10px;text-align:center">${r.kf}</td>
       <td style="padding:6px 10px;text-align:center">${r.fb||'–'}</td>
       <td style="padding:6px 10px;text-align:center">${r.gew||'–'}</td>
-      <td style="padding:6px 10px"><button onclick="wrDeleteRope(${i})"
-        style="background:none;border:none;cursor:pointer;color:var(--rbd);font-size:13px">✕</button></td>`;
+      <td style="padding:6px 6px;white-space:nowrap">
+        <button onclick="wrEditRope(${i})" style="background:none;border:none;cursor:pointer;color:var(--blue);font-size:13px;margin-right:4px" title="Bearbeiten">✏</button>
+        <button onclick="wrDeleteRope(${i})" style="background:none;border:none;cursor:pointer;color:var(--rbd);font-size:13px" title="Löschen">✕</button>
+      </td>`;
     tbody.appendChild(tr);
   });
+}
+
+// ── Seil bearbeiten ───────────────────────────────────────────────────────
+function wrEditRope(i){
+  const r = wrRopes[i];
+  wrEditIndex = i;
+  // Wechsel zum Add-Tab
+  wrTab('add');
+  document.querySelectorAll('.tab-btn, [id^="wr-tab-"][id$="-btn"]').forEach(b=>{});
+  document.getElementById('wr-tab-add-btn').style.color='var(--blue)';
+  document.getElementById('wr-tab-add-btn').style.borderBottomColor='var(--blue)';
+
+  // Felder befüllen
+  document.getElementById('wr-a-hersteller').value = r.hersteller;
+  document.getElementById('wr-a-name').value       = r.name;
+  document.getElementById('wr-a-litzen').value     = r.litzen;
+  document.getElementById('wr-a-draehte').value    = r.draehte;
+  document.getElementById('wr-a-d').value          = r.d;
+  document.getElementById('wr-a-kf').value         = r.kf;
+  document.getElementById('wr-a-fb').value         = r.fb||'–';
+  document.getElementById('wr-a-gew').value        = r.gew||'–';
+
+  // Konstruktions-Dropdown anpassen
+  const konstrSel = document.getElementById('wr-a-konstr');
+  const match = r.litzen+'|'+r.draehte;
+  let found=false;
+  for(let o of konstrSel.options){ if(o.value===match){konstrSel.value=match;found=true;break;} }
+  if(!found) konstrSel.value='';
+
+  // Button-Text ändern
+  const btn = document.getElementById('wr-save-btn');
+  btn.textContent = '💾 Änderungen speichern';
+  document.getElementById('wr-save-msg').textContent = `✏ Bearbeite: ${r.name}`;
+  document.getElementById('wr-save-msg').style.color = 'var(--blue)';
 }
 
 // ── Seil löschen ─────────────────────────────────────────────────────────
@@ -1448,42 +1486,55 @@ async function wrDeleteRope(i){
   wrBuildPreset(); wrRenderCatalog();
 }
 
-// ── Seil speichern ────────────────────────────────────────────────────────
+// ── Seil speichern / aktualisieren ────────────────────────────────────────
 async function wrSaveRope(){
   const name = document.getElementById('wr-a-name').value.trim();
   const msg  = document.getElementById('wr-save-msg');
   if(!name){ msg.textContent='Bezeichnung eingeben!'; msg.style.color='var(--rbd)'; return; }
 
-  const fbVal  = parseFloat(document.getElementById('wr-a-fb').value);
-  const gewVal = parseFloat(document.getElementById('wr-a-gew').value);
+  const fbVal  = parseFloat(document.getElementById('wr-a-fb').value.replace(',','.'));
+  const gewVal = parseFloat(document.getElementById('wr-a-gew').value.replace(',','.'));
 
   const rope = {
     hersteller: document.getElementById('wr-a-hersteller').value,
     name,
     litzen:  parseInt(document.getElementById('wr-a-litzen').value)||6,
     draehte: parseInt(document.getElementById('wr-a-draehte').value)||19,
-    d:       parseFloat(document.getElementById('wr-a-d').value)||16,
+    d:       parseFloat(document.getElementById('wr-a-d').value.replace(',','.'))||16,
     kf:      parseFloat(document.getElementById('wr-a-kf').value)||7.0,
-    fb:      isNaN(fbVal)  ? null : fbVal,
-    gew:     isNaN(gewVal) ? null : gewVal,
+    fb:      isNaN(fbVal)  ? null : Math.round(fbVal*100)/100,
+    gew:     isNaN(gewVal) ? null : Math.round(gewVal*1000)/1000,
   };
 
   const btn = document.getElementById('wr-save-btn');
+  const isEdit = wrEditIndex >= 0;
   btn.textContent = '⏳ Speichern...'; btn.disabled=true;
-  wrRopes.push(rope);
+
+  if(isEdit){
+    wrRopes[wrEditIndex] = rope; // überschreiben
+  } else {
+    wrRopes.push(rope);
+  }
+
   const ok = await wrSaveRopes();
   btn.textContent = '💾 In Cloud speichern'; btn.disabled=false;
 
   if(ok){
-    msg.textContent = '✅ Gespeichert!'; msg.style.color='var(--green)';
+    msg.textContent = isEdit ? '✅ Aktualisiert!' : '✅ Gespeichert!';
+    msg.style.color='var(--green)';
+    // Formular zurücksetzen
     document.getElementById('wr-a-name').value='';
     document.getElementById('wr-a-fb').value='–';
     document.getElementById('wr-a-gew').value='–';
+    document.getElementById('wr-a-konstr').value='';
+    wrEditIndex = -1;
+    btn.textContent = '💾 In Cloud speichern';
     document.getElementById('wr-sync-status').textContent = '☁ '+wrRopes.length+' Seile';
     document.getElementById('wr-sync-status').style.color = 'var(--green)';
     wrBuildPreset();
   } else {
-    wrRopes.pop();
+    if(isEdit) wrRopes[wrEditIndex] = wrRopes[wrEditIndex]; // Rollback nicht nötig da ref
+    else wrRopes.pop();
     msg.textContent = '⚠ Fehler — kein Internet?'; msg.style.color='var(--rbd)';
   }
   setTimeout(()=>msg.textContent='', 4000);
