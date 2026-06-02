@@ -1288,11 +1288,13 @@ function wrGetToken(){ return localStorage.getItem(WR_TOKEN_KEY)||''; }
 // ── Token Eingabe Dialog ──────────────────────────────────────────────────
 function wrShowTokenDialog(){
   const cur = wrGetToken();
-  const t = prompt('GitHub Token eingeben (wird lokal gespeichert, nie hochgeladen):', cur||'ghp_...');
-  if(t && t.startsWith('ghp_')){
-    localStorage.setItem(WR_TOKEN_KEY, t);
-    return t;
+  const t = prompt('GitHub Token eingeben (wird lokal gespeichert, nie hochgeladen):\nghp_...  oder  github_pat_...', cur||'');
+  const tv = t && t.trim();
+  if(tv && (tv.startsWith('ghp_') || tv.startsWith('github_pat_') || tv.startsWith('gho_') || tv.startsWith('ghs_'))){
+    localStorage.setItem(WR_TOKEN_KEY, tv);
+    return tv;
   }
+  if(tv) alert('Ungültiger Token — muss mit ghp_, github_pat_, gho_ oder ghs_ beginnen');
   return null;
 }
 
@@ -1457,7 +1459,7 @@ function wrEditRope(i){
   document.getElementById('wr-a-litzen').value     = r.litzen;
   document.getElementById('wr-a-draehte').value    = r.draehte;
   document.getElementById('wr-a-d').value          = r.d;
-  document.getElementById('wr-a-kf').value         = r.kf;
+  document.getElementById('wr-a-kf').value         = parseFloat(r.kf).toFixed(1);
   document.getElementById('wr-a-fb').value         = r.fb||'–';
   document.getElementById('wr-a-gew').value        = r.gew||'–';
 
@@ -1625,15 +1627,16 @@ function calcWireRope(){
 
 function wrSetupToken(){
   const cur = wrGetToken();
-  const t = prompt('GitHub Personal Access Token eingeben:\n(wird nur lokal im Browser gespeichert)', cur||'ghp_...');
-  if(t && t.trim().startsWith('ghp_')){
-    localStorage.setItem(WR_TOKEN_KEY, t.trim());
+  const t = prompt('GitHub Personal Access Token eingeben:\n(ghp_... oder github_pat_...)\n(wird nur lokal im Browser gespeichert)', cur||'');
+  const tv = t && t.trim();
+  if(tv && (tv.startsWith('ghp_') || tv.startsWith('github_pat_') || tv.startsWith('gho_') || tv.startsWith('ghs_'))){
+    localStorage.setItem(WR_TOKEN_KEY, tv);
     const st=document.getElementById('wr-sync-status');
     st.textContent='✅ Token gespeichert';
     st.style.color='var(--green)';
     wrLoadRopes();
-  } else if(t !== null){
-    alert('Ungültiger Token — muss mit ghp_ beginnen');
+  } else if(tv){
+    alert('Ungültiger Token — muss mit ghp_, github_pat_, gho_ oder ghs_ beginnen');
   }
 }
 
