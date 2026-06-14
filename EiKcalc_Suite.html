@@ -344,7 +344,6 @@ canvas#chart{width:100%!important;height:220px!important}
         <span class="tab-sub">Schnellrechner · EN 12927</span>
       </span>
     </button>
-
   </nav>
 </header>
 
@@ -1857,6 +1856,7 @@ wrLoadRopes();
         <div class="dr"><span class="dk">Steigung P</span><span class="dv" id="tq-p">–</span></div>
         <div class="dr"><span class="dk">Flankendurchmesser d₂</span><span class="dv" id="tq-d2">–</span></div>
         <div class="dr"><span class="dk">Kerndurchmesser d₃</span><span class="dv" id="tq-d3">–</span></div>
+        <div class="dr"><span class="dk">Kernlochbohrer ≈ d–P</span><span class="dv" id="tq-drill">–</span></div>
         <div class="dr"><span class="dk">Spannungsquerschnitt A_s</span><span class="dv" id="tq-as">–</span></div>
         <div class="dr"><span class="dk">Streckgrenze R_p0.2</span><span class="dv" id="tq-rp">–</span></div>
         <div class="dr"><span class="dk">Reibungszahl μ</span><span class="dv" id="tq-mu">–</span></div>
@@ -4066,7 +4066,7 @@ function calcTorque(){
 
   // Reset
   ["tq-ma","tq-fm","tq-mg","tq-mk","tq-ma2","tq-util"].forEach(id=>setTQ(id,"–"));
-  ["tq-d","tq-p","tq-d2","tq-d3","tq-as","tq-rp","tq-mu"].forEach(id=>setTQ(id,"–"));
+  ["tq-d","tq-p","tq-d2","tq-d3","tq-drill","tq-as","tq-rp","tq-mu"].forEach(id=>setTQ(id,"–"));
   document.getElementById("tq-formula").style.display="none";
   document.getElementById("tq-rc-ma").classList.remove("ok");
   document.getElementById("tq-rc-fm").classList.remove("ok");
@@ -4121,6 +4121,7 @@ function calcTorque(){
   setTQ("tq-p",  `${P} mm`);
   setTQ("tq-d2", `${d2} mm`);
   setTQ("tq-d3", `${d3} mm`);
+  setTQ("tq-drill", `${(d - P).toFixed(3)} mm`);
   setTQ("tq-as", `${As} mm²`);
   setTQ("tq-rp", `${Rp} N/mm²`);
   setTQ("tq-mu", `${mu.toFixed(2)}`);
