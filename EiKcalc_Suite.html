@@ -1330,6 +1330,8 @@ async function wrSaveRopes(){
 
     document.getElementById('gear-stage2').style.display = stufen >= 2 ? '' : 'none';
     document.getElementById('gear-stage3').style.display = stufen >= 3 ? '' : 'none';
+    document.getElementById('gear-sec2').style.display   = stufen >= 2 ? '' : 'none';
+    document.getElementById('gear-sec3').style.display   = stufen >= 3 ? '' : 'none';
 
     function getI(stage) {
       const typ = document.getElementById('gear-typ'+stage).value;
@@ -1387,10 +1389,10 @@ async function wrSaveRopes(){
     const vseil = drum > 0 ? (nout * Math.PI * drum / 60000) : null;
 
     document.getElementById('gear-iges').textContent   = iges.toFixed(3);
-    document.getElementById('gear-nout').textContent   = nout.toFixed(1) + ' min⁻¹';
-    document.getElementById('gear-mout').textContent   = mout.toFixed(1) + ' Nm';
-    document.getElementById('gear-etages').textContent = (etages * 100).toFixed(2) + ' %';
-    document.getElementById('gear-vseil').textContent  = vseil !== null ? vseil.toFixed(3) + ' m/s' : '–';
+    document.getElementById('gear-nout').textContent   = nout.toFixed(1);
+    document.getElementById('gear-mout').textContent   = mout.toFixed(1);
+    document.getElementById('gear-etages').textContent = (etages * 100).toFixed(2);
+    document.getElementById('gear-vseil').textContent  = vseil !== null ? vseil.toFixed(3) : '–';
 
     let html = '<table style="width:100%;border-collapse:collapse;font-size:12px">';
     html += '<tr style="background:#1F3864;color:#fff"><th style="padding:4px">Stufe</th><th style="padding:4px">i</th><th style="padding:4px">n_ab</th><th style="padding:4px">M_ab (Nm)</th><th style="padding:4px">η (%)</th></tr>';
@@ -1875,147 +1877,252 @@ wrLoadRopes();
 
 <!-- ══ TOOL: ÜBERSETZUNG ════════════════════════════════════════════════ -->
 <div id="tool-gear" class="tool-panel">
-  <div class="tool-header">
-    <span class="tool-icon">⚙</span>
-    <div>
-      <div class="tool-title">Übersetzungsrechner</div>
-      <div class="tool-sub">Getriebe · Riemen · Kette · Mehrstufig</div>
-    </div>
+<div class="wrap">
+
+  <div class="legend">
+    <span class="li"><span class="ld-b"></span> Eingabe</span>
+    <span class="li"><span class="ld-g"></span> Ergebnis</span>
   </div>
 
-  <div class="section">
-    <div class="section-title"><span class="section-num">1</span> Eingabe</div>
-    <div class="row">
-      <label>Stufen</label>
-      <select id="gear-stufen" onchange="calcGear()">
-        <option value="1">1-stufig</option>
-        <option value="2">2-stufig</option>
-        <option value="3">3-stufig</option>
-      </select>
-    </div>
-    <div class="row">
-      <label>Antriebsdrehzahl n₁</label>
-      <input type="number" id="gear-n1" value="1450" oninput="calcGear()"> <span class="unit">min⁻¹</span>
-    </div>
-    <div class="row">
-      <label>Antriebsdrehmoment M₁</label>
-      <input type="number" id="gear-m1" value="100" oninput="calcGear()"> <span class="unit">Nm</span>
-    </div>
+  <div class="calc-col" style="max-width:900px;margin:0 auto;width:100%">
 
-    <div id="gear-stage1">
-      <div class="subsection-title">Stufe 1</div>
-      <div class="row">
-        <label>Eingabe über</label>
-        <select id="gear-typ1" onchange="calcGear()">
-          <option value="i">Übersetzung i</option>
-          <option value="z">Zähnezahl Z₁/Z₂</option>
-          <option value="d">Durchmesser d₁/d₂</option>
-          <option value="n">Drehzahlen n₁/n₂</option>
-        </select>
+    <div class="sec">① Antrieb</div>
+    <div class="crd" style="margin-bottom:16px">
+      <div class="ir">
+        <div class="il">Anzahl Stufen</div>
+        <span class="iu"></span>
+        <div class="sw">
+          <select id="gear-stufen" class="is" onchange="calcGear()">
+            <option value="1">1-stufig</option>
+            <option value="2">2-stufig</option>
+            <option value="3">3-stufig</option>
+          </select>
+        </div>
       </div>
-      <div id="gear-inp1a" class="row">
-        <label>Übersetzung i₁</label>
-        <input type="number" id="gear-i1" value="4" step="0.1" oninput="calcGear()">
+      <div class="ir">
+        <div class="il">Antriebsdrehzahl <b>n₁</b></div>
+        <span class="iu">min⁻¹</span>
+        <input id="gear-n1" type="text" inputmode="decimal" class="if" value="1450" oninput="calcGear()">
       </div>
-      <div id="gear-inp1b" class="row" style="display:none">
-        <label>Z₁ / Z₂</label>
-        <input type="number" id="gear-z1a" value="20" oninput="calcGear()"> /
-        <input type="number" id="gear-z1b" value="80" oninput="calcGear()">
-      </div>
-      <div id="gear-inp1c" class="row" style="display:none">
-        <label>d₁ / d₂ (mm)</label>
-        <input type="number" id="gear-d1a" value="100" oninput="calcGear()"> /
-        <input type="number" id="gear-d1b" value="400" oninput="calcGear()">
-      </div>
-      <div id="gear-inp1d" class="row" style="display:none">
-        <label>n₂ Abtrieb (min⁻¹)</label>
-        <input type="number" id="gear-n1d" value="362" oninput="calcGear()">
-      </div>
-      <div class="row">
-        <label>Wirkungsgrad η₁ (%)</label>
-        <input type="number" id="gear-eta1" value="97" min="50" max="100" step="0.5" oninput="calcGear()">
+      <div class="ir">
+        <div class="il">Antriebsdrehmoment <b>M₁</b></div>
+        <span class="iu">Nm</span>
+        <input id="gear-m1" type="text" inputmode="decimal" class="if" value="100" oninput="calcGear()">
       </div>
     </div>
 
-    <div id="gear-stage2" style="display:none">
-      <div class="subsection-title">Stufe 2</div>
-      <div class="row">
-        <label>Eingabe über</label>
-        <select id="gear-typ2" onchange="calcGear()">
-          <option value="i">Übersetzung i</option>
-          <option value="z">Zähnezahl Z₁/Z₂</option>
-          <option value="d">Durchmesser d₁/d₂</option>
-        </select>
+    <!-- Stufe 1 -->
+    <div class="sec">② Stufe 1</div>
+    <div class="crd" style="margin-bottom:16px" id="gear-stage1">
+      <div class="ir">
+        <div class="il">Eingabe über</div>
+        <span class="iu"></span>
+        <div class="sw">
+          <select id="gear-typ1" class="is" onchange="calcGear()">
+            <option value="i">Übersetzung i</option>
+            <option value="z">Zähnezahl Z₁/Z₂</option>
+            <option value="d">Durchmesser d₁/d₂</option>
+            <option value="n">Abtriebsdrehzahl n₂</option>
+          </select>
+        </div>
       </div>
-      <div id="gear-inp2a" class="row">
-        <label>Übersetzung i₂</label>
-        <input type="number" id="gear-i2" value="3" step="0.1" oninput="calcGear()">
+      <div id="gear-inp1a">
+        <div class="ir">
+          <div class="il">Übersetzung <b>i₁</b></div>
+          <span class="iu">–</span>
+          <input id="gear-i1" type="text" inputmode="decimal" class="if" value="4" oninput="calcGear()">
+        </div>
       </div>
-      <div id="gear-inp2b" class="row" style="display:none">
-        <label>Z₁ / Z₂</label>
-        <input type="number" id="gear-z2a" value="20" oninput="calcGear()"> /
-        <input type="number" id="gear-z2b" value="60" oninput="calcGear()">
+      <div id="gear-inp1b" style="display:none">
+        <div class="ir">
+          <div class="il">Zähnezahl <b>Z₁</b> (Antrieb)</div>
+          <span class="iu">–</span>
+          <input id="gear-z1a" type="text" inputmode="decimal" class="if" value="20" oninput="calcGear()">
+        </div>
+        <div class="ir">
+          <div class="il">Zähnezahl <b>Z₂</b> (Abtrieb)</div>
+          <span class="iu">–</span>
+          <input id="gear-z1b" type="text" inputmode="decimal" class="if" value="80" oninput="calcGear()">
+        </div>
       </div>
-      <div id="gear-inp2c" class="row" style="display:none">
-        <label>d₁ / d₂ (mm)</label>
-        <input type="number" id="gear-d2a" value="100" oninput="calcGear()"> /
-        <input type="number" id="gear-d2b" value="300" oninput="calcGear()">
+      <div id="gear-inp1c" style="display:none">
+        <div class="ir">
+          <div class="il">Durchmesser <b>d₁</b> (Antrieb)</div>
+          <span class="iu">mm</span>
+          <input id="gear-d1a" type="text" inputmode="decimal" class="if" value="100" oninput="calcGear()">
+        </div>
+        <div class="ir">
+          <div class="il">Durchmesser <b>d₂</b> (Abtrieb)</div>
+          <span class="iu">mm</span>
+          <input id="gear-d1b" type="text" inputmode="decimal" class="if" value="400" oninput="calcGear()">
+        </div>
       </div>
-      <div class="row">
-        <label>Wirkungsgrad η₂ (%)</label>
-        <input type="number" id="gear-eta2" value="97" min="50" max="100" step="0.5" oninput="calcGear()">
+      <div id="gear-inp1d" style="display:none">
+        <div class="ir">
+          <div class="il">Abtriebsdrehzahl <b>n₂</b></div>
+          <span class="iu">min⁻¹</span>
+          <input id="gear-n1d" type="text" inputmode="decimal" class="if" value="362" oninput="calcGear()">
+        </div>
+      </div>
+      <div class="ir">
+        <div class="il">Wirkungsgrad <b>η₁</b></div>
+        <span class="iu">%</span>
+        <input id="gear-eta1" type="text" inputmode="decimal" class="if" value="97" oninput="calcGear()">
       </div>
     </div>
 
-    <div id="gear-stage3" style="display:none">
-      <div class="subsection-title">Stufe 3</div>
-      <div class="row">
-        <label>Eingabe über</label>
-        <select id="gear-typ3" onchange="calcGear()">
-          <option value="i">Übersetzung i</option>
-          <option value="z">Zähnezahl Z₁/Z₂</option>
-          <option value="d">Durchmesser d₁/d₂</option>
-        </select>
+    <!-- Stufe 2 -->
+    <div id="gear-sec2" class="sec" style="display:none">③ Stufe 2</div>
+    <div class="crd" id="gear-stage2" style="display:none;margin-bottom:16px">
+      <div class="ir">
+        <div class="il">Eingabe über</div>
+        <span class="iu"></span>
+        <div class="sw">
+          <select id="gear-typ2" class="is" onchange="calcGear()">
+            <option value="i">Übersetzung i</option>
+            <option value="z">Zähnezahl Z₁/Z₂</option>
+            <option value="d">Durchmesser d₁/d₂</option>
+          </select>
+        </div>
       </div>
-      <div id="gear-inp3a" class="row">
-        <label>Übersetzung i₃</label>
-        <input type="number" id="gear-i3" value="2" step="0.1" oninput="calcGear()">
+      <div id="gear-inp2a">
+        <div class="ir">
+          <div class="il">Übersetzung <b>i₂</b></div>
+          <span class="iu">–</span>
+          <input id="gear-i2" type="text" inputmode="decimal" class="if" value="3" oninput="calcGear()">
+        </div>
       </div>
-      <div id="gear-inp3b" class="row" style="display:none">
-        <label>Z₁ / Z₂</label>
-        <input type="number" id="gear-z3a" value="20" oninput="calcGear()"> /
-        <input type="number" id="gear-z3b" value="40" oninput="calcGear()">
+      <div id="gear-inp2b" style="display:none">
+        <div class="ir">
+          <div class="il">Zähnezahl <b>Z₁</b></div>
+          <span class="iu">–</span>
+          <input id="gear-z2a" type="text" inputmode="decimal" class="if" value="20" oninput="calcGear()">
+        </div>
+        <div class="ir">
+          <div class="il">Zähnezahl <b>Z₂</b></div>
+          <span class="iu">–</span>
+          <input id="gear-z2b" type="text" inputmode="decimal" class="if" value="60" oninput="calcGear()">
+        </div>
       </div>
-      <div id="gear-inp3c" class="row" style="display:none">
-        <label>d₁ / d₂ (mm)</label>
-        <input type="number" id="gear-d3a" value="100" oninput="calcGear()"> /
-        <input type="number" id="gear-d3b" value="200" oninput="calcGear()">
+      <div id="gear-inp2c" style="display:none">
+        <div class="ir">
+          <div class="il">Durchmesser <b>d₁</b></div>
+          <span class="iu">mm</span>
+          <input id="gear-d2a" type="text" inputmode="decimal" class="if" value="100" oninput="calcGear()">
+        </div>
+        <div class="ir">
+          <div class="il">Durchmesser <b>d₂</b></div>
+          <span class="iu">mm</span>
+          <input id="gear-d2b" type="text" inputmode="decimal" class="if" value="300" oninput="calcGear()">
+        </div>
       </div>
-      <div class="row">
-        <label>Wirkungsgrad η₃ (%)</label>
-        <input type="number" id="gear-eta3" value="97" min="50" max="100" step="0.5" oninput="calcGear()">
+      <div class="ir">
+        <div class="il">Wirkungsgrad <b>η₂</b></div>
+        <span class="iu">%</span>
+        <input id="gear-eta2" type="text" inputmode="decimal" class="if" value="97" oninput="calcGear()">
       </div>
     </div>
 
-    <div class="row" id="gear-seildrum-row">
-      <label>Seilscheiben-Ø (optional)</label>
-      <input type="number" id="gear-drum" value="0" step="10" oninput="calcGear()"> <span class="unit">mm</span>
+    <!-- Stufe 3 -->
+    <div id="gear-sec3" class="sec" style="display:none">④ Stufe 3</div>
+    <div class="crd" id="gear-stage3" style="display:none;margin-bottom:16px">
+      <div class="ir">
+        <div class="il">Eingabe über</div>
+        <span class="iu"></span>
+        <div class="sw">
+          <select id="gear-typ3" class="is" onchange="calcGear()">
+            <option value="i">Übersetzung i</option>
+            <option value="z">Zähnezahl Z₁/Z₂</option>
+            <option value="d">Durchmesser d₁/d₂</option>
+          </select>
+        </div>
+      </div>
+      <div id="gear-inp3a">
+        <div class="ir">
+          <div class="il">Übersetzung <b>i₃</b></div>
+          <span class="iu">–</span>
+          <input id="gear-i3" type="text" inputmode="decimal" class="if" value="2" oninput="calcGear()">
+        </div>
+      </div>
+      <div id="gear-inp3b" style="display:none">
+        <div class="ir">
+          <div class="il">Zähnezahl <b>Z₁</b></div>
+          <span class="iu">–</span>
+          <input id="gear-z3a" type="text" inputmode="decimal" class="if" value="20" oninput="calcGear()">
+        </div>
+        <div class="ir">
+          <div class="il">Zähnezahl <b>Z₂</b></div>
+          <span class="iu">–</span>
+          <input id="gear-z3b" type="text" inputmode="decimal" class="if" value="40" oninput="calcGear()">
+        </div>
+      </div>
+      <div id="gear-inp3c" style="display:none">
+        <div class="ir">
+          <div class="il">Durchmesser <b>d₁</b></div>
+          <span class="iu">mm</span>
+          <input id="gear-d3a" type="text" inputmode="decimal" class="if" value="100" oninput="calcGear()">
+        </div>
+        <div class="ir">
+          <div class="il">Durchmesser <b>d₂</b></div>
+          <span class="iu">mm</span>
+          <input id="gear-d3b" type="text" inputmode="decimal" class="if" value="200" oninput="calcGear()">
+        </div>
+      </div>
+      <div class="ir">
+        <div class="il">Wirkungsgrad <b>η₃</b></div>
+        <span class="iu">%</span>
+        <input id="gear-eta3" type="text" inputmode="decimal" class="if" value="97" oninput="calcGear()">
+      </div>
     </div>
+
+    <!-- Optional Seilscheibe -->
+    <div class="sec">⑤ Optional: Seilscheibe / Trommel</div>
+    <div class="crd" style="margin-bottom:16px">
+      <div class="ir">
+        <div class="il">Seilscheiben-Ø <b>D</b><small>0 = nicht verwendet</small></div>
+        <span class="iu">mm</span>
+        <input id="gear-drum" type="text" inputmode="decimal" class="if" value="0" oninput="calcGear()">
+      </div>
+    </div>
+
+    <!-- Ergebnisse -->
+    <div class="sec">⑥ Ergebnisse</div>
+    <div class="crd" style="margin-bottom:16px">
+      <div class="ir-res">
+        <div class="il">Gesamtübersetzung <b>i_ges</b></div>
+        <span class="iu">–</span>
+        <span class="res-box" id="gear-iges">–</span>
+      </div>
+      <div class="ir-res">
+        <div class="il">Abtriebsdrehzahl <b>n₂</b></div>
+        <span class="iu">min⁻¹</span>
+        <span class="res-box" id="gear-nout">–</span>
+      </div>
+      <div class="ir-res">
+        <div class="il">Abtriebsdrehmoment <b>M₂</b></div>
+        <span class="iu">Nm</span>
+        <span class="res-box" id="gear-mout">–</span>
+      </div>
+      <div class="ir-res">
+        <div class="il">Gesamtwirkungsgrad <b>η_ges</b></div>
+        <span class="iu">%</span>
+        <span class="res-box" id="gear-etages">–</span>
+      </div>
+      <div class="ir-res">
+        <div class="il">Seilgeschwindigkeit <b>v</b><small>nur wenn Ø eingegeben</small></div>
+        <span class="iu">m/s</span>
+        <span class="res-box" id="gear-vseil">–</span>
+      </div>
+    </div>
+
+    <!-- Stufentabelle -->
+    <div class="sec">⑦ Stufenübersicht</div>
+    <div class="crd" style="margin-bottom:16px;overflow-x:auto">
+      <div id="gear-table" style="padding:8px"></div>
+    </div>
+
   </div>
-
-  <div class="section">
-    <div class="section-title"><span class="section-num">2</span> Ergebnisse</div>
-    <div class="dr"><span class="dk">Gesamtübersetzung i_ges</span><span class="dv" id="gear-iges">–</span></div>
-    <div class="dr"><span class="dk">Abtriebsdrehzahl n₂</span><span class="dv" id="gear-nout">–</span></div>
-    <div class="dr"><span class="dk">Abtriebsdrehmoment M₂</span><span class="dv" id="gear-mout">–</span></div>
-    <div class="dr"><span class="dk">Gesamtwirkungsgrad η_ges</span><span class="dv" id="gear-etages">–</span></div>
-    <div class="dr result-key"><span class="dk">Seilgeschwindigkeit v</span><span class="dv" id="gear-vseil">–</span></div>
-  </div>
-
-  <div class="section">
-    <div class="section-title"><span class="section-num">3</span> Stufenübersicht</div>
-    <div id="gear-table"></div>
-  </div>
+</div>
 </div><!-- /tool-gear -->
 
 <!-- Placeholder panels -->
