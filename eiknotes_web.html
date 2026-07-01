@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EiKnotes — Feldprotokoll</title>
+<style>
+  :root {
+    --navy: #1A2E4A; --blue: #2D6DB5; --green: #27A060;
+    --orange: #E07020; --red: #D94040; --bg: #F0F4FA;
+    --border: #D0DCF0; --text: #1A2E4A; --muted: #6B7A99;
+    --surf: #fff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+  body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Header */
+  header { background: var(--navy); color: white; padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 20px; font-weight: 700; }
+  header p { font-size: 11px; color: rgba(255,255,255,0.6); }
+  .header-btns { margin-left: auto; display: flex; gap: 8px; }
+  .btn { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .btn-blue { background: var(--blue); color: white; }
+  .btn-green { background: var(--green); color: white; }
+  .btn-outline { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); }
+  .btn:hover { opacity: 0.85; }
+
+  /* Layout */
+  .container { display: flex; height: calc(100vh - 56px); }
+
+  /* Sidebar */
+  .sidebar { width: 320px; min-width: 280px; background: white; border-right: 1px solid var(--border); overflow-y: auto; }
+  .sidebar-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .sidebar-header h2 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+
+  .anlage-item { padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+  .anlage-item:hover { background: var(--bg); }
+  .anlage-item.active { background: #EEF4FD; border-left: 3px solid var(--blue); }
+  .anlage-name { font-weight: 700; font-size: 14px; color: var(--text); }
+  .anlage-meta { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; gap: 10px; align-items: center; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; color: white; }
+  .badge-red { background: var(--red); }
+  .badge-orange { background: var(--orange); }
+
+  /* Main content */
+  .main { flex: 1; overflow-y: auto; padding: 20px; }
+  .main-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); flex-direction: column; gap: 12px; }
+  .main-empty svg { opacity: 0.3; }
+
+  /* Notiz-Liste */
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .section-header h2 { font-size: 18px; font-weight: 700; }
+  .section-header p { font-size: 12px; color: var(--muted); }
+
+  .notiz-card { background: white; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 12px; overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .notiz-head { padding: 12px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+  .notiz-head.ok    { background: rgba(39,160,96,0.08); border-bottom-color: rgba(39,160,96,0.2); }
+  .notiz-head.warn  { background: rgba(224,112,32,0.08); border-bottom-color: rgba(224,112,32,0.2); }
+  .notiz-head.nok   { background: rgba(217,64,64,0.08); border-bottom-color: rgba(217,64,64,0.2); }
+  .notiz-title { font-weight: 700; font-size: 14px; }
+  .notiz-date { font-size: 10px; color: var(--muted); }
+  .notiz-body { padding: 12px 16px; }
+  .notiz-row { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; font-size: 12px; color: var(--text); }
+  .notiz-row svg { color: var(--muted); flex-shrink: 0; }
+  .notiz-bem { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .notiz-actions { display: flex; gap: 8px; padding: 8px 16px; border-top: 1px solid var(--border); background: var(--bg); }
+  .btn-sm { padding: 5px 12px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; }
+  .btn-sm-blue { background: var(--blue); color: white; }
+  .btn-sm-red { background: transparent; color: var(--red); border: 1px solid var(--red); }
+
+  /* Modal */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: white; border-radius: 16px; width: 540px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+  .modal-header { padding: 16px 20px; background: var(--blue); color: white; border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center; }
+  .modal-header h3 { font-size: 16px; font-weight: 700; }
+  .modal-close { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
+  .modal-body { padding: 20px; }
+  .modal-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+  .field-group { margin-bottom: 14px; }
+  .field-group label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .field-group input, .field-group textarea, .field-group select {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13px; color: var(--text); outline: none; font-family: inherit; }
+  .field-group input:focus, .field-group textarea:focus { border-color: var(--blue); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field-row-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; }
+
+  .bewertung-btns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .bew-btn { padding: 10px; border-radius: 8px; border: 2px solid var(--border); cursor: pointer; text-align: center; transition: all 0.15s; background: white; }
+  .bew-btn.active-ok    { border-color: var(--green); background: rgba(39,160,96,0.08); }
+  .bew-btn.active-warn  { border-color: var(--orange); background: rgba(224,112,32,0.08); }
+  .bew-btn.active-nok   { border-color: var(--red); background: rgba(217,64,64,0.08); }
+  .bew-icon { font-size: 20px; }
+  .bew-label { font-size: 11px; font-weight: 700; margin-top: 4px; }
+
+  .sec-label { font-size: 10px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: 1px;
+    border-left: 3px solid var(--blue); padding-left: 8px; margin-bottom: 10px; margin-top: 16px; }
+
+  /* Status */
+  .status-bar { padding: 8px 16px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); background: var(--bg); }
+  .status-ok { color: var(--green); }
+  .status-err { color: var(--red); }
+
+  /* Loading */
+  .loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: var(--muted); gap: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="24" height="24" fill="white" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+  <div><h1>EiKnotes</h1><p>Feldprotokoll — PC Ansicht</p></div>
+  <div class="header-btns">
+    <button class="btn btn-outline" onclick="syncFirebase()">🔄 Synchronisieren</button>
+    <button class="btn btn-green" onclick="neueAnlage()">+ Neue Anlage</button>
+  </div>
+</header>
+
+<div id="statusBar" class="status-bar">Bereit</div>
+
+<div class="container">
+  <!-- Sidebar: Anlagen -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>Anlagen</h2>
+      <span id="anlagenCount" style="font-size:11px;color:var(--muted)">0</span>
+    </div>
+    <div id="anlagenListe"></div>
+  </div>
+
+  <!-- Main: Messnotizen -->
+  <div class="main" id="mainContent">
+    <div class="main-empty">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+      </svg>
+      <p>Anlage auswählen</p>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Neue Anlage -->
+<div class="modal-bg" id="modalAnlage">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalAnlageTitel">Neue Anlage</h3>
+      <button class="modal-close" onclick="closeModal('modalAnlage')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="sec-label">Bezeichnung</div>
+      <div class="field-group">
+        <label>Anlagenname</label>
+        <input id="anlageName" type="text" placeholder="z.B. Seilbahn Kronplatz">
+      </div>
+      <div class="sec-label">Zeitraum</div>
+      <div class="field-row">
+        <div class="field-group">
+          <label>Monat</label>
+          <select id="anlageMonat">
+            <option value="1">Januar</option><option value="2">Februar</option>
+            <option value="3">März</option><option value="4">April</option>
+            <option value="5">Mai</option><option value="6">Juni</option>
+            <option value="7">Juli</option><option value="8">August</option>
+            <option value="9">September</option><option value="10">Oktober</option>
+            <option value="11">November</option><option value="12">Dezember</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Jahr</label>
+          <select id="anlageJahr"></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" style="color:var(--text);background:var(--bg);border:1px solid var(--border)" onclick="closeModal('modalAnlage')">Abbrechen</button>
+      <button class="btn btn-blue" onclick="anlageSpeiichern()">Erstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Neue/Bearbeiten Messnotiz -->
+<div class="modal-bg" id="modalNotiz">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalNotizTitel">Neue Messnotiz</h3>
+      <button class="modal-close" onclick="closeModal('modalNotiz')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="sec-label">Messung</div>
+      <div class="field-group">
+        <label>Messpunkt / Bauteil</label>
+        <input id="notizMesspunkt" type="text" placeholder="z.B. Antriebslager links">
+      </div>
+      <div class="field-row-3">
+        <div class="field-group">
+          <label>Messwert</label>
+          <input id="notizMesswert" type="text" placeholder="0.00">
+        </div>
+        <div class="field-group">
+          <label>Einheit</label>
+          <input id="notizEinheit" type="text" placeholder="mm/s">
+        </div>
+        <div class="field-group">
+          <label>Grenzwert</label>
+          <input id="notizGrenzwert" type="text" placeholder="0.00">
+        </div>
+      </div>
+      <div class="sec-label">Bewertung</div>
+      <div class="bewertung-btns">
+        <div class="bew-btn active-ok" id="bew-ok" onclick="setBewertung('ok')">
+          <div class="bew-icon">✅</div>
+          <div class="bew-label" style="color:var(--green)">OK</div>
+        </div>
+        <div class="bew-btn" id="bew-warn" onclick="setBewertung('warn')">
+          <div class="bew-icon">⚠️</div>
+          <div class="bew-label" style="color:var(--orange)">Warnung</div>
+        </div>
+        <div class="bew-btn" id="bew-nok" onclick="setBewertung('nok')">
+          <div class="bew-icon">❌</div>
+          <div class="bew-label" style="color:var(--red)">Nicht OK</div>
+        </div>
+      </div>
+      <div class="sec-label">Bemerkung</div>
+      <div class="field-group">
+        <textarea id="notizBemerkung" rows="4" placeholder="Notizen, Beobachtungen…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" style="color:var(--text);background:var(--bg);border:1px solid var(--border)" onclick="closeModal('modalNotiz')">Abbrechen</button>
+      <button class="btn btn-blue" onclick="notizSpeichern()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getDatabase, ref, set, get, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyC6o4DPT_ux5yTtM8Zum3odZIKAPKP4avE',
+    authDomain: 'eikcalc.firebaseapp.com',
+    databaseURL: 'https://eikcalc-default-rtdb.europe-west1.firebasedatabase.app',
+    projectId: 'eikcalc',
+    storageBucket: 'eikcalc.firebasestorage.app',
+    messagingSenderId: '769615464859',
+    appId: '1:769615464859:android:a3b59f54a1d5cf99d4793e'
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const dbRef = ref(db, 'eiknotes/anlagen');
+
+  // Globaler State
+  window._db = db;
+  window._dbRef = dbRef;
+  window._set = set;
+  window._get = get;
+  window._ref = ref;
+
+  // Live-Sync
+  onValue(dbRef, (snap) => {
+    if (snap.exists()) {
+      const data = snap.val();
+      window._anlagen = Object.values(data).sort((a, b) =>
+        `${b.jahr}${String(b.monat).padStart(2,'0')}`.localeCompare(`${a.jahr}${String(a.monat).padStart(2,'0')}`));
+    } else {
+      window._anlagen = [];
+    }
+    renderAnlagen();
+    setStatus('✓ Verbunden mit Firebase', true);
+  }, (err) => {
+    setStatus('Firebase Fehler: ' + err.message, false);
+  });
+
+  window.saveToFirebase = async function() {
+    const data = {};
+    for (const a of window._anlagen) data[a.id] = a;
+    await set(dbRef, data);
+  };
+
+  window.syncFirebase = async function() {
+    setStatus('Synchronisiere…');
+    const snap = await get(dbRef);
+    if (snap.exists()) {
+      window._anlagen = Object.values(snap.val()).sort((a, b) =>
+        `${b.jahr}${String(b.monat).padStart(2,'0')}`.localeCompare(`${a.jahr}${String(a.monat).padStart(2,'0')}`));
+      renderAnlagen();
+      setStatus('✓ Synchronisiert: ' + window._anlagen.length + ' Anlagen', true);
+    } else {
+      setStatus('Keine Daten in Firebase');
+    }
+  };
+</script>
+
+<script>
+  // State
+  window._anlagen = [];
+  window._aktAnlage = null;
+  window._aktNotizId = null;
+  window._aktBewertung = 'ok';
+
+  // Jahr-Dropdown befüllen
+  const jSelect = document.getElementById('anlageJahr');
+  const now = new Date();
+  for (let y = now.getFullYear() - 1; y <= now.getFullYear() + 2; y++) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y;
+    if (y === now.getFullYear()) o.selected = true;
+    jSelect.appendChild(o);
+  }
+  document.getElementById('anlageMonat').value = now.getMonth() + 1;
+
+  function setStatus(msg, ok = null) {
+    const el = document.getElementById('statusBar');
+    el.textContent = msg;
+    el.className = 'status-bar' + (ok === true ? ' status-ok' : ok === false ? ' status-err' : '');
+  }
+
+  function uuid() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  function formatDatum(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('de-AT', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+  }
+
+  function bewIcon(b) {
+    return b === 0 ? '✅' : b === 1 ? '⚠️' : '❌';
+  }
+  function bewLabel(b) {
+    return b === 0 ? 'OK' : b === 1 ? 'Warnung' : 'Nicht OK';
+  }
+  function bewClass(b) {
+    return b === 0 ? 'ok' : b === 1 ? 'warn' : 'nok';
+  }
+
+  function renderAnlagen() {
+    const el = document.getElementById('anlagenListe');
+    document.getElementById('anlagenCount').textContent = window._anlagen.length + ' Anlagen';
+    el.innerHTML = '';
+    for (const a of window._anlagen) {
+      const nok = (a.notizen || []).filter(n => n.bewertung === 2).length;
+      const warn = (a.notizen || []).filter(n => n.bewertung === 1).length;
+      const div = document.createElement('div');
+      div.className = 'anlage-item' + (window._aktAnlage?.id === a.id ? ' active' : '');
+      div.innerHTML = `
+        <div class="anlage-name">${a.name}</div>
+        <div class="anlage-meta">
+          <span>${String(a.monat).padStart(2,'0')}.${a.jahr}</span>
+          <span>${(a.notizen||[]).length} Messungen</span>
+          ${nok > 0 ? `<span class="badge badge-red">${nok} NOK</span>` : ''}
+          ${warn > 0 ? `<span class="badge badge-orange">${warn} Warn</span>` : ''}
+        </div>`;
+      div.onclick = () => { window._aktAnlage = a; renderAnlagen(); renderNotizen(); };
+      el.appendChild(div);
+    }
+  }
+
+  function renderNotizen() {
+    const a = window._aktAnlage;
+    const el = document.getElementById('mainContent');
+    if (!a) { el.innerHTML = '<div class="main-empty"><p>Anlage auswählen</p></div>'; return; }
+
+    const notizen = a.notizen || [];
+    el.innerHTML = `
+      <div class="section-header">
+        <div>
+          <h2>${a.name}</h2>
+          <p>${String(a.monat).padStart(2,'0')}.${a.jahr} · ${notizen.length} Messung${notizen.length===1?'':'en'}</p>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline" style="color:var(--red);border-color:var(--red);background:white" onclick="anlageLoeschen('${a.id}')">🗑 Anlage löschen</button>
+          <button class="btn btn-blue" onclick="neueNotiz()">+ Neue Messung</button>
+        </div>
+      </div>
+      ${notizen.length === 0
+        ? '<div class="main-empty" style="height:200px"><p>Noch keine Messnotizen</p></div>'
+        : notizen.map(n => `
+        <div class="notiz-card">
+          <div class="notiz-head ${bewClass(n.bewertung)}">
+            <span>${bewIcon(n.bewertung)}</span>
+            <div style="flex:1">
+              <div class="notiz-title">${n.messpunkt || 'Ohne Messpunkt'}</div>
+              <div class="notiz-date">${formatDatum(n.datum)}</div>
+            </div>
+            <span style="font-size:11px;color:var(--muted)">${bewLabel(n.bewertung)}</span>
+          </div>
+          <div class="notiz-body">
+            ${n.messwert ? `<div class="notiz-row">📏 <span>${n.messwert} ${n.einheit||''}${n.grenzwert ? ' / GW: '+n.grenzwert+' '+(n.einheit||'') : ''}</span></div>` : ''}
+            ${n.bemerkung ? `<div class="notiz-bem">${n.bemerkung}</div>` : ''}
+          </div>
+          <div class="notiz-actions">
+            <button class="btn-sm btn-sm-blue" onclick="notizBearbeiten('${n.id}')">✏ Bearbeiten</button>
+            <button class="btn-sm btn-sm-red" onclick="notizLoeschen('${n.id}')">Löschen</button>
+          </div>
+        </div>`).join('')}`;
+  }
+
+  // ── Anlage ────────────────────────────────────────────────────────────
+  function neueAnlage() {
+    document.getElementById('modalAnlageTitel').textContent = 'Neue Anlage';
+    document.getElementById('anlageName').value = '';
+    document.getElementById('anlageMonat').value = new Date().getMonth() + 1;
+    document.getElementById('anlageJahr').value = new Date().getFullYear();
+    openModal('modalAnlage');
+    setTimeout(() => document.getElementById('anlageName').focus(), 100);
+  }
+
+  window.anlageSpeiichern = async function() {
+    const name = document.getElementById('anlageName').value.trim();
+    if (!name) return;
+    const neu = {
+      id: uuid(), name,
+      monat: parseInt(document.getElementById('anlageMonat').value),
+      jahr: parseInt(document.getElementById('anlageJahr').value),
+      notizen: []
+    };
+    window._anlagen.unshift(neu);
+    closeModal('modalAnlage');
+    await window.saveToFirebase();
+    setStatus('✓ Anlage erstellt', true);
+    renderAnlagen();
+  };
+
+  window.anlageLoeschen = async function(id) {
+    if (!confirm('Anlage und alle Messnotizen löschen?')) return;
+    window._anlagen = window._anlagen.filter(a => a.id !== id);
+    if (window._aktAnlage?.id === id) window._aktAnlage = null;
+    await window.saveToFirebase();
+    renderAnlagen();
+    renderNotizen();
+  };
+
+  // ── Notiz ────────────────────────────────────────────────────────────
+  function setBewertung(b) {
+    window._aktBewertung = b;
+    document.getElementById('bew-ok').className = 'bew-btn' + (b==='ok' ? ' active-ok' : '');
+    document.getElementById('bew-warn').className = 'bew-btn' + (b==='warn' ? ' active-warn' : '');
+    document.getElementById('bew-nok').className = 'bew-btn' + (b==='nok' ? ' active-nok' : '');
+  }
+
+  function neueNotiz() {
+    window._aktNotizId = null;
+    window._aktBewertung = 'ok';
+    document.getElementById('modalNotizTitel').textContent = 'Neue Messnotiz';
+    document.getElementById('notizMesspunkt').value = '';
+    document.getElementById('notizMesswert').value = '';
+    document.getElementById('notizEinheit').value = '';
+    document.getElementById('notizGrenzwert').value = '';
+    document.getElementById('notizBemerkung').value = '';
+    setBewertung('ok');
+    openModal('modalNotiz');
+    setTimeout(() => document.getElementById('notizMesspunkt').focus(), 100);
+  }
+
+  window.notizBearbeiten = function(id) {
+    const a = window._aktAnlage;
+    const n = a.notizen.find(x => x.id === id);
+    if (!n) return;
+    window._aktNotizId = id;
+    const bMap = [null, 'ok', 'warn', 'nok'];
+    const bStr = n.bewertung === 0 ? 'ok' : n.bewertung === 1 ? 'warn' : 'nok';
+    window._aktBewertung = bStr;
+    document.getElementById('modalNotizTitel').textContent = 'Messnotiz bearbeiten';
+    document.getElementById('notizMesspunkt').value = n.messpunkt || '';
+    document.getElementById('notizMesswert').value = n.messwert || '';
+    document.getElementById('notizEinheit').value = n.einheit || '';
+    document.getElementById('notizGrenzwert').value = n.grenzwert || '';
+    document.getElementById('notizBemerkung').value = n.bemerkung || '';
+    setBewertung(bStr);
+    openModal('modalNotiz');
+  };
+
+  window.notizSpeichern = async function() {
+    const a = window._aktAnlage;
+    const bewMap = { ok: 0, warn: 1, nok: 2 };
+    const bew = bewMap[window._aktBewertung] ?? 0;
+    const data = {
+      messpunkt: document.getElementById('notizMesspunkt').value.trim(),
+      messwert: document.getElementById('notizMesswert').value.trim(),
+      einheit: document.getElementById('notizEinheit').value.trim(),
+      grenzwert: document.getElementById('notizGrenzwert').value.trim(),
+      bemerkung: document.getElementById('notizBemerkung').value.trim(),
+      bewertung: bew, fotos: []
+    };
+    if (window._aktNotizId) {
+      const i = a.notizen.findIndex(n => n.id === window._aktNotizId);
+      if (i >= 0) { Object.assign(a.notizen[i], data); a.notizen[i].datum = a.notizen[i].datum; }
+    } else {
+      a.notizen.unshift({ id: uuid(), datum: new Date().toISOString(), ...data });
+    }
+    closeModal('modalNotiz');
+    await window.saveToFirebase();
+    setStatus('✓ Gespeichert', true);
+    renderNotizen();
+  };
+
+  window.notizLoeschen = async function(id) {
+    if (!confirm('Messnotiz löschen?')) return;
+    window._aktAnlage.notizen = window._aktAnlage.notizen.filter(n => n.id !== id);
+    await window.saveToFirebase();
+    renderNotizen();
+  };
+
+  // ── Modal ────────────────────────────────────────────────────────────
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  window.closeModal = closeModal;
+  window.neueAnlage = neueAnlage;
+  window.neueNotiz = neueNotiz;
+  window.setBewertung = setBewertung;
+</script>
+</body>
+</html>
