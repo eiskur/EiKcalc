@@ -286,12 +286,32 @@
     const data = {};
     for (const a of window._anlagen) data[a.id] = a;
     try {
-      await set(dbRef, data);
+      await window._set(window._dbRef, data);
       setStatus('✓ Gespeichert und synchronisiert', true);
       renderAnlagen();
       if (window._aktAnlageId) renderNotizen();
     } catch(e) {
       setStatus('Fehler beim Speichern: ' + e.message, false);
+      console.error('Firebase write error:', e);
+    }
+  };
+
+  window.syncFirebase = async function() {
+    setStatus('Synchronisiere...');
+    try {
+      const snap = await window._get(window._dbRef);
+      if (snap.exists()) {
+        window._anlagen = Object.values(snap.val()).sort((a, b) =>
+          `${b.jahr}${String(b.monat).padStart(2,'0')}`.localeCompare(`${a.jahr}${String(a.monat).padStart(2,'0')}`));
+        renderAnlagen();
+        if (window._aktAnlageId) renderNotizen();
+        setStatus('✓ Synchronisiert: ' + window._anlagen.length + ' Anlagen', true);
+      } else {
+        setStatus('Keine Daten in Firebase');
+      }
+    } catch(e) {
+      setStatus('Sync Fehler: ' + e.message, false);
+      console.error('Sync error:', e);
     }
   };
 
