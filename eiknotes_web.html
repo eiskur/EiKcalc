@@ -512,13 +512,17 @@
       bemerkung: document.getElementById('notizBemerkung').value.trim(),
       bewertung: bew, fotos: []
     };
-    if (!a.notizen) a.notizen = [];
+    if (!a.notizen || !Array.isArray(a.notizen)) a.notizen = [];
     if (window._aktNotizId) {
       const i = a.notizen.findIndex(n => n.id === window._aktNotizId);
       if (i >= 0) { Object.assign(a.notizen[i], data); }
+      else { a.notizen.unshift({ id: uuid(), datum: new Date().toISOString(), ...data }); }
     } else {
       a.notizen.unshift({ id: uuid(), datum: new Date().toISOString(), ...data });
     }
+    // Anlage in _anlagen aktualisieren
+    const ai = window._anlagen.findIndex(x => x.id === a.id);
+    if (ai >= 0) window._anlagen[ai] = a;
     closeModal('modalNotiz');
     await window.saveToFirebase();
     setStatus('✓ Gespeichert', true);
