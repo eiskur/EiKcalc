@@ -283,16 +283,20 @@
   };
 
   window.saveToFirebase = async function() {
+    console.log('saveToFirebase called, anlagen:', window._anlagen.length);
+    console.log('_set:', typeof window._set, '_dbRef:', typeof window._dbRef);
     const data = {};
     for (const a of window._anlagen) data[a.id] = a;
+    console.log('data to write:', JSON.stringify(data).substring(0, 200));
     try {
       await window._set(window._dbRef, data);
+      console.log('Firebase write SUCCESS');
       setStatus('✓ Gespeichert und synchronisiert', true);
       renderAnlagen();
       if (window._aktAnlageId) renderNotizen();
     } catch(e) {
+      console.error('Firebase write FAILED:', e);
       setStatus('Fehler beim Speichern: ' + e.message, false);
-      console.error('Firebase write error:', e);
     }
   };
 
