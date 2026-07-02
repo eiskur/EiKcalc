@@ -115,7 +115,7 @@
   <div><h1>EiKnotes</h1><p>Feldprotokoll — PC Ansicht</p></div>
   <div class="header-btns">
     <button class="btn btn-outline" onclick="syncFirebase()">🔄 Synchronisieren</button>
-    <button class="btn btn-green" onclick="neueAnlage()">+ Neue Anlage</button>
+    <button class="btn btn-green" onclick="neueAnlage()">+ Neues Messprojekt</button>
   </div>
 </header>
 
@@ -142,11 +142,11 @@
   </div>
 </div>
 
-<!-- Modal: Neue Anlage -->
+<!-- Modal: Neues Messprojekt -->
 <div class="modal-bg" id="modalAnlage">
   <div class="modal">
     <div class="modal-header">
-      <h3 id="modalAnlageTitel">Neue Anlage</h3>
+      <h3 id="modalAnlageTitel">Neues Messprojekt</h3>
       <button class="modal-close" onclick="closeModal('modalAnlage')">✕</button>
     </div>
     <div class="modal-body">
@@ -276,10 +276,29 @@
     setStatus('Firebase Fehler: ' + err.message, false);
   });
 
+  // Live-Updates auch in der Detailansicht anzeigen
+  window._renderAfterSync = function() {
+    renderAnlagen();
+    if (window._aktAnlageId) renderNotizen();
+  };
+
   window.saveToFirebase = async function() {
     const data = {};
     for (const a of window._anlagen) data[a.id] = a;
-    await set(dbRef, data);
+    try {
+      await set(dbRef, data);
+      setStatus('✓ Gespeichert und synchronisiert', true);
+      renderAnlagen();
+      if (window._aktAnlageId) renderNotizen();
+    } catch(e) {
+      setStatus('Fehler beim Speichern: ' + e.message, false);
+    }
+  };
+
+  // Hilfsfunktion: aktAnlage aus _anlagen neu lesen
+  window.getAktAnlage = function() {
+    if (!window._aktAnlageId) return null;
+    return window._anlagen.find(a => a.id === window._aktAnlageId) || null;
   };
 
   window.syncFirebase = async function() {
@@ -299,7 +318,7 @@
 <script>
   // State
   window._anlagen = [];
-  window._aktAnlage = null;
+  window._aktAnlageId = null;
   window._aktNotizId = null;
   window._aktBewertung = 'ok';
 
@@ -350,7 +369,7 @@
       const nok = (a.notizen || []).filter(n => n.bewertung === 2).length;
       const warn = (a.notizen || []).filter(n => n.bewertung === 1).length;
       const div = document.createElement('div');
-      div.className = 'anlage-item' + (window._aktAnlage?.id === a.id ? ' active' : '');
+      div.className = 'anlage-item' + (window._aktAnlageId === a.id ? ' active' : '');
       div.innerHTML = `
         <div class="anlage-name">${a.name}</div>
         <div class="anlage-meta">
@@ -359,13 +378,13 @@
           ${nok > 0 ? `<span class="badge badge-red">${nok} NOK</span>` : ''}
           ${warn > 0 ? `<span class="badge badge-orange">${warn} Warn</span>` : ''}
         </div>`;
-      div.onclick = () => { window._aktAnlage = a; renderAnlagen(); renderNotizen(); };
+      div.onclick = () => { window._aktAnlageId = a.id; renderAnlagen(); renderNotizen(); };
       el.appendChild(div);
     }
   }
 
   function renderNotizen() {
-    const a = window._aktAnlage;
+    const a = window.getAktAnlage();
     const el = document.getElementById('mainContent');
     if (!a) { el.innerHTML = '<div class="main-empty"><p>Anlage auswählen</p></div>'; return; }
 
@@ -377,7 +396,7 @@
           <p>${String(a.monat).padStart(2,'0')}.${a.jahr} · ${notizen.length} Messung${notizen.length===1?'':'en'}</p>
         </div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-outline" style="color:var(--red);border-color:var(--red);background:white" onclick="anlageLoeschen('${a.id}')">🗑 Anlage löschen</button>
+          <button class="btn btn-outline" style="color:var(--red);border-color:var(--red);background:white" onclick="window.anlageLoeschen('${a.id}')">Anlage löschen</button>
           <button class="btn btn-blue" onclick="neueNotiz()">+ Neue Messung</button>
         </div>
       </div>
@@ -398,15 +417,15 @@
             ${n.bemerkung ? `<div class="notiz-bem">${n.bemerkung}</div>` : ''}
           </div>
           <div class="notiz-actions">
-            <button class="btn-sm btn-sm-blue" onclick="notizBearbeiten('${n.id}')">✏ Bearbeiten</button>
-            <button class="btn-sm btn-sm-red" onclick="notizLoeschen('${n.id}')">Löschen</button>
+            <button class="btn-sm btn-sm-blue" onclick="window.notizBearbeiten('${n.id}')">✏ Bearbeiten</button>
+            <button class="btn-sm btn-sm-red" onclick="window.notizLoeschen('${n.id}')">Löschen</button>
           </div>
         </div>`).join('')}`;
   }
 
   // ── Anlage ────────────────────────────────────────────────────────────
   function neueAnlage() {
-    document.getElementById('modalAnlageTitel').textContent = 'Neue Anlage';
+    document.getElementById('modalAnlageTitel').textContent = 'Neues Messprojekt';
     document.getElementById('anlageName').value = '';
     document.getElementById('anlageMonat').value = new Date().getMonth() + 1;
     document.getElementById('anlageJahr').value = new Date().getFullYear();
@@ -433,7 +452,7 @@
   window.anlageLoeschen = async function(id) {
     if (!confirm('Anlage und alle Messnotizen löschen?')) return;
     window._anlagen = window._anlagen.filter(a => a.id !== id);
-    if (window._aktAnlage?.id === id) window._aktAnlage = null;
+    if (window._aktAnlageId === id) window._aktAnlageId = null;
     await window.saveToFirebase();
     renderAnlagen();
     renderNotizen();
@@ -448,6 +467,7 @@
   }
 
   function neueNotiz() {
+    if (!window.getAktAnlage()) { alert('Bitte zuerst eine Anlage auswählen'); return; }
     window._aktNotizId = null;
     window._aktBewertung = 'ok';
     document.getElementById('modalNotizTitel').textContent = 'Neue Messnotiz';
@@ -462,7 +482,7 @@
   }
 
   window.notizBearbeiten = function(id) {
-    const a = window._aktAnlage;
+    const a = window.getAktAnlage();
     const n = a.notizen.find(x => x.id === id);
     if (!n) return;
     window._aktNotizId = id;
@@ -480,7 +500,8 @@
   };
 
   window.notizSpeichern = async function() {
-    const a = window._aktAnlage;
+    const a = window.getAktAnlage();
+    if (!a) { alert('Keine Anlage ausgewählt'); return; }
     const bewMap = { ok: 0, warn: 1, nok: 2 };
     const bew = bewMap[window._aktBewertung] ?? 0;
     const data = {
@@ -491,9 +512,10 @@
       bemerkung: document.getElementById('notizBemerkung').value.trim(),
       bewertung: bew, fotos: []
     };
+    if (!a.notizen) a.notizen = [];
     if (window._aktNotizId) {
       const i = a.notizen.findIndex(n => n.id === window._aktNotizId);
-      if (i >= 0) { Object.assign(a.notizen[i], data); a.notizen[i].datum = a.notizen[i].datum; }
+      if (i >= 0) { Object.assign(a.notizen[i], data); }
     } else {
       a.notizen.unshift({ id: uuid(), datum: new Date().toISOString(), ...data });
     }
@@ -505,7 +527,8 @@
 
   window.notizLoeschen = async function(id) {
     if (!confirm('Messnotiz löschen?')) return;
-    window._aktAnlage.notizen = window._aktAnlage.notizen.filter(n => n.id !== id);
+    const a = window.getAktAnlage(); if (!a) return;
+    a.notizen = a.notizen.filter(n => n.id !== id);
     await window.saveToFirebase();
     renderNotizen();
   };
@@ -516,6 +539,8 @@
   window.closeModal = closeModal;
   window.neueAnlage = neueAnlage;
   window.neueNotiz = neueNotiz;
+  window.setBewertung = setBewertung;
+  window.openModal = openModal;
   window.setBewertung = setBewertung;
 </script>
 </body>
