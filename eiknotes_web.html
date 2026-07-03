@@ -68,10 +68,19 @@
   .foto-thumb { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border);
     cursor: pointer; transition: transform 0.15s; }
   .foto-thumb:hover { transform: scale(1.05); }
+  .foto-thumb-wrap { position: relative; display: inline-block; }
+  .foto-annot-badge { position: absolute; top: 3px; right: 3px; background: var(--blue); color: white;
+    font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 8px; pointer-events: none; }
   .lightbox-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200;
     align-items: center; justify-content: center; cursor: zoom-out; }
   .lightbox-bg.open { display: flex; }
-  .lightbox-bg img { max-width: 92vw; max-height: 92vh; border-radius: 8px; }
+  .lightbox-inner { position: relative; display: inline-block; }
+  .lightbox-inner img { display: block; max-width: 92vw; max-height: 92vh; border-radius: 8px; }
+  .lightbox-annotations { position: absolute; inset: 0; pointer-events: none; }
+  .annot-marker { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column;
+    align-items: flex-start; gap: 2px; }
+  .annot-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid black; box-sizing: border-box; }
+  .annot-label { font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
   .notiz-actions { display: flex; gap: 8px; padding: 8px 16px; border-top: 1px solid var(--border); background: var(--bg); }
   .btn-sm { padding: 5px 12px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; }
   .btn-sm-blue { background: var(--blue); color: white; }
@@ -245,7 +254,10 @@
 
 <!-- Foto-Vollansicht -->
 <div class="lightbox-bg" id="lightbox" onclick="window.fotoSchliessen()">
-  <img id="lightboxImg" src="" alt="Foto">
+  <div class="lightbox-inner">
+    <img id="lightboxImg" src="" alt="Foto">
+    <div class="lightbox-annotations" id="lightboxAnnotations"></div>
+  </div>
 </div>
 
 <!-- Firebase SDK -->
@@ -426,6 +438,14 @@
     if (!a) { el.innerHTML = '<div class="main-empty"><p>Anlage auswählen</p></div>'; return; }
 
     const notizen = a.notizen || [];
+    // Lookup-Map, damit die Lightbox bei einem Klick per Foto-ID die
+    // zugehörigen Annotationen (Positionen/Text/Farbe) wiederfindet.
+    window._fotoMap = {};
+    for (const n of notizen) {
+      for (const f of (n.fotos || [])) {
+        if (f.url) window._fotoMap[f.id] = f;
+      }
+    }
     el.innerHTML = `
       <div class="section-header">
         <div>
@@ -454,7 +474,11 @@
             ${n.bemerkung ? `<div class="notiz-bem">${n.bemerkung}</div>` : ''}
             ${(n.fotos||[]).filter(f => f.url).length > 0 ? `
             <div class="notiz-fotos">
-              ${(n.fotos||[]).filter(f => f.url).map(f => `<img src="${f.url}" class="foto-thumb" onclick="window.fotoAnzeigen('${f.url}')" loading="lazy">`).join('')}
+              ${(n.fotos||[]).filter(f => f.url).map(f => `
+                <div class="foto-thumb-wrap">
+                  <img src="${f.url}" class="foto-thumb" onclick="window.fotoAnzeigen('${f.id}')" loading="lazy">
+                  ${(f.annotationen||[]).length > 0 ? `<span class="foto-annot-badge">${f.annotationen.length}</span>` : ''}
+                </div>`).join('')}
             </div>` : ''}
           </div>
           <div class="notiz-actions">
@@ -592,8 +616,30 @@
   window.setBewertung = setBewertung;
 
   // ── Foto-Vollansicht ────────────────────────────────────────────────────
-  window.fotoAnzeigen = function(url) {
-    document.getElementById('lightboxImg').src = url;
+  // Flutter speichert Farben als ARGB-Ganzzahl (Color.value); daraus die
+  // CSS-Farbe extrahieren (Alpha-Byte ignorieren, RGB-Bytes auslesen).
+  function argbZuCss(v) {
+    const r = (v >> 16) & 0xFF, g = (v >> 8) & 0xFF, b = v & 0xFF;
+    return `rgb(${r},${g},${b})`;
+  }
+  function hellGenugFuerSchwarzenText(v) {
+    const r = (v >> 16) & 0xFF, g = (v >> 8) & 0xFF, b = v & 0xFF;
+    return (r * 299 + g * 587 + b * 114) / 1000 > 150;
+  }
+
+  window.fotoAnzeigen = function(fotoId) {
+    const foto = window._fotoMap ? window._fotoMap[fotoId] : null;
+    if (!foto) return;
+    document.getElementById('lightboxImg').src = foto.url;
+    const annotEl = document.getElementById('lightboxAnnotations');
+    annotEl.innerHTML = (foto.annotationen || []).map(a => {
+      const farbe = argbZuCss(a.color);
+      const textFarbe = hellGenugFuerSchwarzenText(a.color) ? '#000' : '#fff';
+      return `<div class="annot-marker" style="left:${a.x * 100}%; top:${a.y * 100}%;">
+        <div class="annot-dot" style="background:${farbe}"></div>
+        <div class="annot-label" style="background:${farbe}; color:${textFarbe}">${a.text}</div>
+      </div>`;
+    }).join('');
     document.getElementById('lightbox').classList.add('open');
   };
   window.fotoSchliessen = function() {
