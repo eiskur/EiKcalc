@@ -278,6 +278,7 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   const dbRef = ref(db, 'eiknotes/anlagen');
+  const fotoUrlsRef = ref(db, 'eiknotes/foto_urls');
 
   // Globaler State
   window._db = db;
@@ -285,8 +286,25 @@
   window._set = set;
   window._get = get;
   window._ref = ref;
+  window._fotoUrls = {};
 
-  // Live-Sync
+  // Patcht fehlende/veraltete Foto-URLs (fotoId -> url) direkt in die
+  // geladenen Anlagen. Grund: die App schreibt frisch hochgeladene URLs
+  // sofort und unabhängig vom Anlagen-Baum in diesen separaten Knoten,
+  // damit ein Foto nie mehr "verloren" geht, egal wann/ob der komplette
+  // Anlagen-Baum synchronisiert wurde.
+  window._patchFotoUrls = function() {
+    const urls = window._fotoUrls || {};
+    for (const a of (window._anlagen || [])) {
+      for (const n of (a.notizen || [])) {
+        for (const f of (n.fotos || [])) {
+          if (urls[f.id] && f.url !== urls[f.id]) f.url = urls[f.id];
+        }
+      }
+    }
+  };
+
+  // Live-Sync Anlagen
   onValue(dbRef, (snap) => {
     if (snap.exists()) {
       const data = snap.val();
@@ -295,10 +313,22 @@
     } else {
       window._anlagen = [];
     }
+    window._patchFotoUrls();
     renderAnlagen();
+    if (window._aktAnlageId) renderNotizen();
     setStatus('✓ Verbunden mit Firebase', true);
   }, (err) => {
     setStatus('Firebase Fehler: ' + err.message, false);
+  });
+
+  // Live-Sync Foto-URLs (unabhängig vom Anlagen-Sync)
+  onValue(fotoUrlsRef, (snap) => {
+    window._fotoUrls = snap.exists() ? snap.val() : {};
+    window._patchFotoUrls();
+    renderAnlagen();
+    if (window._aktAnlageId) renderNotizen();
+  }, (err) => {
+    console.error('foto_urls Fehler:', err);
   });
 
   // Live-Updates auch in der Detailansicht anzeigen
@@ -325,6 +355,11 @@
     }
   };
 
+  // Hinweis: es gab hier vorher eine zweite, doppelte Definition von
+  // window.syncFirebase weiter unten, die diese hier komplett überschrieben
+  // hat (toter Code, nie ausgeführt). Entfernt - das ist jetzt die einzige,
+  // aktive Version. Sie liest zusätzlich foto_urls, damit frisch von der
+  // App hochgeladene Fotos garantiert sichtbar werden.
   window.syncFirebase = async function() {
     setStatus('Synchronisiere...');
     try {
@@ -332,12 +367,19 @@
       if (snap.exists()) {
         window._anlagen = Object.values(snap.val()).sort((a, b) =>
           `${b.jahr}${String(b.monat).padStart(2,'0')}`.localeCompare(`${a.jahr}${String(a.monat).padStart(2,'0')}`));
-        renderAnlagen();
-        if (window._aktAnlageId) renderNotizen();
-        setStatus('✓ Synchronisiert: ' + window._anlagen.length + ' Anlagen', true);
       } else {
-        setStatus('Keine Daten in Firebase');
+        window._anlagen = [];
       }
+      try {
+        const urlSnap = await window._get(window._ref(window._db, 'eiknotes/foto_urls'));
+        window._fotoUrls = urlSnap.exists() ? urlSnap.val() : {};
+      } catch (e) {
+        console.error('foto_urls Sync-Fehler:', e);
+      }
+      window._patchFotoUrls();
+      renderAnlagen();
+      if (window._aktAnlageId) renderNotizen();
+      setStatus(window._anlagen.length ? ('✓ Synchronisiert: ' + window._anlagen.length + ' Anlagen') : 'Keine Daten in Firebase', window._anlagen.length > 0);
     } catch(e) {
       setStatus('Sync Fehler: ' + e.message, false);
       console.error('Sync error:', e);
@@ -348,19 +390,6 @@
   window.getAktAnlage = function() {
     if (!window._aktAnlageId) return null;
     return window._anlagen.find(a => a.id === window._aktAnlageId) || null;
-  };
-
-  window.syncFirebase = async function() {
-    setStatus('Synchronisiere…');
-    const snap = await get(dbRef);
-    if (snap.exists()) {
-      window._anlagen = Object.values(snap.val()).sort((a, b) =>
-        `${b.jahr}${String(b.monat).padStart(2,'0')}`.localeCompare(`${a.jahr}${String(a.monat).padStart(2,'0')}`));
-      renderAnlagen();
-      setStatus('✓ Synchronisiert: ' + window._anlagen.length + ' Anlagen', true);
-    } else {
-      setStatus('Keine Daten in Firebase');
-    }
   };
 </script>
 
