@@ -266,6 +266,8 @@
   <div class="lightbox-inner">
     <img id="lightboxImg" src="" alt="Foto">
     <div class="lightbox-annotations" id="lightboxAnnotations"></div>
+    <button id="lightboxDownloadBtn" title="Foto herunterladen" onclick="event.stopPropagation(); window.lightboxFotoHerunterladen()"
+      style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.55);border:none;color:white;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;">⬇ Download</button>
   </div>
 </div>
 
@@ -916,6 +918,24 @@
   };
   window.fotoSchliessen = function() {
     document.getElementById('lightbox').classList.remove('open');
+  };
+
+  window.lightboxFotoHerunterladen = async function() {
+    const url = document.getElementById('lightboxImg').src;
+    if (!url) return;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl; a.download = 'eiknotes_foto.jpg';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.error('Download fehlgeschlagen:', e);
+      window.open(url, '_blank'); // Fallback, falls Fetch/CORS nicht klappt
+    }
   };
 </script>
 </body>
