@@ -40,6 +40,7 @@
   .anlage-meta { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; gap: 10px; align-items: center; }
   .notiz-foto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-bottom: 6px; }
   .notiz-foto-item { position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 1.2; background: var(--bg); border: 1px solid var(--border); }
+  .notiz-foto-item.drag-over { border: 2px dashed var(--blue); }
   .notiz-foto-item img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
   .notiz-foto-item .foto-del-btn { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.55); border: none; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; line-height: 1; cursor: pointer; z-index: 2; }
   .notiz-foto-item .foto-uploading { position: absolute; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; }
@@ -686,14 +687,16 @@
   function renderNotizFotoGrid() {
     const el = document.getElementById('notizFotoGrid');
     el.innerHTML = window._aktFotos.map(f => `
-      <div class="notiz-foto-item" data-foto-id="${f.id}">
+      <div class="notiz-foto-item" data-foto-id="${f.id}"
+        ondragover="event.preventDefault(); this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="window.fotoDropErsetzen(event, '${f.id}')">
         ${f.url ? `<img src="${f.url}" onclick="window.open('${f.url}','_blank')">` : `<div class="foto-uploading">Hochladen…</div>`}
         <button class="foto-del-btn" title="Foto löschen" onclick="window.notizFotoLoeschen('${f.id}')">✕</button>
         ${f.url ? `
         <div class="notiz-foto-toolbar">
-          <button title="Original herunterladen" onclick="window.fotoHerunterladen('${f.id}')">⬇</button>
-          <button title="Aus Zwischenablage einfügen (nach Bearbeiten extern kopieren)" onclick="window.fotoAusZwischenablageEinfuegen('${f.id}')">📋</button>
-          <button title="Bearbeitete Datei hochladen (ersetzt dieses Foto)" onclick="window.fotoDateiErsetzenStarten('${f.id}')">📁</button>
+          <button title="Original herunterladen" onclick="window.fotoHerunterladen('${f.id}')">⬇ Download</button>
+          <button title="Ersetzen: versucht zuerst die Zwischenablage, sonst Datei-Dialog. Auch per Drag &amp; Drop direkt aufs Foto möglich." onclick="window.fotoErsetzenAuto('${f.id}')">🔄 Ersetzen</button>
         </div>` : ''}
       </div>`).join('');
   }
@@ -757,27 +760,38 @@
     }
   };
 
-  window.fotoAusZwischenablageEinfuegen = async function(fotoId) {
-    if (!navigator.clipboard || !navigator.clipboard.read) {
-      alert('Diese Funktion braucht Chrome oder Edge über HTTPS. Bitte stattdessen "Datei hochladen" verwenden.');
-      return;
-    }
-    try {
-      const items = await navigator.clipboard.read();
-      let blob = null;
-      for (const item of items) {
-        const typ = item.types.find(t => t.startsWith('image/'));
-        if (typ) { blob = await item.getType(typ); break; }
+  // Ein Button für beide Rückwege: zuerst automatisch die Zwischenablage
+  // versuchen (funktioniert direkt nach Strg+C im Bildbearbeitungsprogramm),
+  // und nur falls dort nichts Brauchbares liegt (oder der Browser das nicht
+  // unterstützt) den Datei-Dialog als Fallback öffnen. Spart einen Klick und
+  // die Entscheidung "welchen Button nehme ich".
+  window.fotoErsetzenAuto = async function(fotoId) {
+    if (navigator.clipboard && navigator.clipboard.read) {
+      try {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const typ = item.types.find(t => t.startsWith('image/'));
+          if (typ) {
+            const blob = await item.getType(typ);
+            await fotoErsetzenMitDatei(fotoId, blob);
+            return;
+          }
+        }
+      } catch (_) {
+        // Berechtigung verweigert oder Zwischenablage leer -> unten Fallback
       }
-      if (!blob) {
-        alert('Kein Bild in der Zwischenablage gefunden. Erst im Bildbearbeitungsprogramm kopieren (Strg+C), dann hier einfügen.');
-        return;
-      }
-      await fotoErsetzenMitDatei(fotoId, blob);
-    } catch (e) {
-      console.error('Zwischenablage-Fehler:', e);
-      alert('Zwischenablage konnte nicht gelesen werden (Berechtigung verweigert?). Bitte stattdessen "Datei hochladen" verwenden.');
     }
+    window.fotoDateiErsetzenStarten(fotoId);
+  };
+
+  // Drag & Drop: bearbeitete Datei direkt aus dem Explorer/Finder auf das
+  // Foto ziehen, ganz ohne Button.
+  window.fotoDropErsetzen = function(event, fotoId) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('drag-over');
+    const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    fotoErsetzenMitDatei(fotoId, file);
   };
 
   window.fotoDateiErsetzenStarten = function(fotoId) {
