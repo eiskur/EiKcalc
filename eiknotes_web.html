@@ -448,15 +448,22 @@
       const warn = (a.notizen || []).filter(n => n.bewertung === 1).length;
       const div = document.createElement('div');
       div.className = 'anlage-item' + (window._aktAnlageId === a.id ? ' active' : '');
+      div.style.position = 'relative';
       div.innerHTML = `
-        <div class="anlage-name">${a.name}</div>
+        <div class="anlage-name" style="padding-right:26px">${a.name}</div>
         <div class="anlage-meta">
           <span>${String(a.monat).padStart(2,'0')}.${a.jahr}</span>
           <span>${(a.notizen||[]).length} Messungen</span>
           ${nok > 0 ? `<span class="badge badge-red">${nok} NOK</span>` : ''}
           ${warn > 0 ? `<span class="badge badge-orange">${warn} Warn</span>` : ''}
-        </div>`;
+        </div>
+        <button class="anlage-item-del" title="Anlage löschen"
+          style="position:absolute;top:12px;right:10px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:4px">🗑</button>`;
       div.onclick = () => { window._aktAnlageId = a.id; renderAnlagen(); renderNotizen(); };
+      div.querySelector('.anlage-item-del').onclick = (ev) => {
+        ev.stopPropagation();
+        window.anlageLoeschen(a.id);
+      };
       el.appendChild(div);
     }
   }
