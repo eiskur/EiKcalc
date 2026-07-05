@@ -292,6 +292,18 @@
   const dbRef = ref(db, 'eiknotes/anlagen');
   const fotoUrlsRef = ref(db, 'eiknotes/foto_urls');
 
+  // Eindeutige Sortierung: neuestes Jahr/Monat zuerst, bei Gleichstand
+  // (gleicher Monat/Jahr) die zeitlich zuletzt erstellte Anlage zuerst.
+  // Alte Datensätze ohne 'erstellt' fallen auf einen festen alten Zeitpunkt
+  // zurück, damit sie nicht fälschlich vor neu erstellten landen.
+  function anlagenVergleich(a, b) {
+    if (a.jahr !== b.jahr) return b.jahr - a.jahr;
+    if (a.monat !== b.monat) return b.monat - a.monat;
+    const ae = a.erstellt ? new Date(a.erstellt).getTime() : 0;
+    const be = b.erstellt ? new Date(b.erstellt).getTime() : 0;
+    return be - ae;
+  }
+
   // Globaler State
   window._db = db;
   window._dbRef = dbRef;
@@ -325,8 +337,7 @@
   onValue(dbRef, (snap) => {
     if (snap.exists()) {
       const data = snap.val();
-      window._anlagen = Object.values(data).sort((a, b) =>
-        `${b.jahr}${String(b.monat).padStart(2,'0')}`.localeCompare(`${a.jahr}${String(a.monat).padStart(2,'0')}`));
+      window._anlagen = Object.values(data).sort(anlagenVergleich);
     } else {
       window._anlagen = [];
     }
@@ -382,8 +393,7 @@
     try {
       const snap = await window._get(window._dbRef);
       if (snap.exists()) {
-        window._anlagen = Object.values(snap.val()).sort((a, b) =>
-          `${b.jahr}${String(b.monat).padStart(2,'0')}`.localeCompare(`${a.jahr}${String(a.monat).padStart(2,'0')}`));
+        window._anlagen = Object.values(snap.val()).sort(anlagenVergleich);
       } else {
         window._anlagen = [];
       }
@@ -561,6 +571,7 @@
       id: uuid(), name,
       monat: parseInt(document.getElementById('anlageMonat').value),
       jahr: parseInt(document.getElementById('anlageJahr').value),
+      erstellt: new Date().toISOString(),
       notizen: []
     };
     window._anlagen.unshift(neu);
