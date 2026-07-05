@@ -63,6 +63,17 @@
   .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
   .section-header h2 { font-size: 18px; font-weight: 700; }
   .section-header p { font-size: 12px; color: var(--muted); }
+  .dokumente-leiste { display: flex; align-items: center; gap: 10px; background: white; border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 12px; margin-bottom: 16px; }
+  .dokumente-chips { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; }
+  .dok-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 14px; padding: 4px 8px; font-size: 11px; color: var(--text); cursor: pointer; max-width: 200px; }
+  .dok-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; }
+  .dok-chip-del { color: var(--muted); margin-left: 2px; }
+  .dok-chip-del:hover { color: var(--red); }
+  .dok-spinner { width: 9px; height: 9px; border: 1.5px solid var(--border); border-top-color: var(--blue);
+    border-radius: 50%; display: inline-block; animation: dokspin 0.8s linear infinite; }
+  @keyframes dokspin { to { transform: rotate(360deg); } }
 
   .notiz-card { background: white; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 12px; overflow: hidden;
     box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
@@ -471,6 +482,15 @@
     return b === 0 ? 'ok' : b === 1 ? 'warn' : 'nok';
   }
 
+  function dokIcon(name) {
+    const ext = (name || '').toLowerCase().split('.').pop();
+    if (ext === 'pdf') return '📕';
+    if (['doc','docx'].includes(ext)) return '📄';
+    if (['xls','xlsx','csv'].includes(ext)) return '📊';
+    if (['ppt','pptx'].includes(ext)) return '📽️';
+    return '📁';
+  }
+
   function renderAnlagen() {
     const el = document.getElementById('anlagenListe');
     document.getElementById('anlagenCount').textContent = window._anlagen.length + ' Anlagen';
@@ -524,6 +544,20 @@
           <button class="btn btn-outline" style="color:var(--red);border-color:var(--red);background:white" onclick="window.anlageLoeschen('${a.id}')">Anlage löschen</button>
           <button class="btn btn-blue" onclick="neueNotiz()">+ Neue Notiz</button>
         </div>
+      </div>
+      <div class="dokumente-leiste">
+        <span style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px">📎 Dokumente</span>
+        <div class="dokumente-chips">
+          ${(a.dokumente || []).length === 0 ? '<span style="font-size:11px;color:var(--muted)">Keine Dokumente</span>' :
+            (a.dokumente || []).map(d => `
+              <span class="dok-chip" title="${d.name}" onclick="window.dokumentOeffnen('${d.id}')">
+                ${dokIcon(d.name)} <span class="dok-chip-name">${d.name}</span>
+                ${!d.url ? '<span class="dok-spinner"></span>' : ''}
+                <span class="dok-chip-del" onclick="event.stopPropagation(); window.dokumentLoeschen('${d.id}')">✕</span>
+              </span>`).join('')}
+        </div>
+        <input type="file" id="dokumentInput" style="display:none" onchange="window.handleDokumentUpload(event)">
+        <button class="btn-sm btn-sm-blue" style="flex-shrink:0" onclick="document.getElementById('dokumentInput').click()">+ Hinzufügen</button>
       </div>
       ${notizen.length === 0
         ? '<div class="main-empty" style="height:200px"><p>Noch keine Messnotizen</p></div>'
@@ -838,6 +872,52 @@
       alert('Ersetzen fehlgeschlagen: ' + e.message);
     }
   }
+
+  // ── Dokumente (PDF/Word/Excel/beliebig) - auf Anlagen-Ebene, gelten für ──
+  // alle Notizen der Anlage, nicht pro einzelner Notiz.
+  window.handleDokumentUpload = async function(event) {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    const a = window.getAktAnlage();
+    if (!a) { alert('Bitte zuerst eine Anlage auswählen'); return; }
+    if (!a.dokumente) a.dokumente = [];
+    const dokId = uuid();
+    a.dokumente.push({ id: dokId, name: file.name, url: null });
+    renderNotizen();
+    try {
+      const sRef = window._storageRef(window._storage, `eiknotes/dokumente/${a.id}/${dokId}_${file.name}`);
+      await window._uploadBytes(sRef, file);
+      const url = await window._getDownloadURL(sRef);
+      const i = a.dokumente.findIndex(d => d.id === dokId);
+      if (i >= 0) a.dokumente[i].url = url;
+      await window.saveToFirebase();
+      renderNotizen();
+    } catch (e) {
+      console.error('Dokument-Upload fehlgeschlagen:', e);
+      a.dokumente = a.dokumente.filter(d => d.id !== dokId);
+      renderNotizen();
+      alert('Hochladen fehlgeschlagen: ' + e.message);
+    }
+  };
+
+  window.dokumentOeffnen = function(dokId) {
+    const a = window.getAktAnlage();
+    const d = a && (a.dokumente || []).find(x => x.id === dokId);
+    if (!d) return;
+    if (!d.url) { alert('Dokument wird noch hochgeladen…'); return; }
+    window.open(d.url, '_blank');
+  };
+
+  window.dokumentLoeschen = function(dokId) {
+    const a = window.getAktAnlage();
+    if (!a) return;
+    const d = (a.dokumente || []).find(x => x.id === dokId);
+    if (!d || !confirm(`"${d.name}" löschen?`)) return;
+    a.dokumente = a.dokumente.filter(x => x.id !== dokId);
+    saveToFirebase();
+    renderNotizen();
+  };
 
   // ── Modal ────────────────────────────────────────────────────────────
   function openModal(id) { document.getElementById(id).classList.add('open'); }
