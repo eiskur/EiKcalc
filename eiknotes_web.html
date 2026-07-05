@@ -100,6 +100,24 @@
   .lightbox-inner { position: relative; display: inline-block; }
   .lightbox-inner img { display: block; max-width: 92vw; max-height: 92vh; border-radius: 8px; }
   .lightbox-annotations { position: absolute; inset: 0; pointer-events: none; }
+  .lightbox-toolbar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(20,20,20,0.95);
+    padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; z-index: 201; }
+  .lightbox-toolbar-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .lightbox-toolbar-label { color: #ccc; font-size: 12px; margin-right: 2px; }
+  .lb-form-btn { background: #333; color: white; border: 1px solid #555; border-radius: 8px;
+    padding: 6px 10px; font-size: 12px; cursor: pointer; }
+  .lb-form-btn.active { background: var(--blue); border-color: var(--blue); }
+  .lb-farbe-btn { width: 22px; height: 22px; border-radius: 50%; display: inline-block; cursor: pointer;
+    box-sizing: border-box; }
+  .lb-farbe-btn.active { box-shadow: 0 0 0 2px white; }
+  #lightboxText { background: #222; color: white; border: 1px solid #555; border-radius: 6px;
+    padding: 6px 8px; font-size: 12px; }
+  .lb-handle { position: absolute; width: 22px; height: 22px; border-radius: 50%; box-sizing: border-box;
+    cursor: grab; transform: translate(-50%,-50%); pointer-events: auto; border: 2px solid black; }
+  .lb-handle.aktiv { border-color: white; box-shadow: 0 0 6px 2px rgba(255,255,255,0.9); }
+  .lb-del-badge { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: var(--red);
+    color: white; font-size: 11px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; pointer-events: auto; transform: translate(4px,-26px); }
   .annot-marker { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column;
     align-items: flex-start; gap: 2px; }
   .annot-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid black; box-sizing: border-box; }
@@ -278,11 +296,35 @@
 
 <!-- Foto-Vollansicht -->
 <div class="lightbox-bg" id="lightbox" onclick="window.fotoSchliessen()">
-  <div class="lightbox-inner">
-    <img id="lightboxImg" src="" alt="Foto">
+  <div class="lightbox-inner" onclick="event.stopPropagation()">
+    <img id="lightboxImg" src="" alt="Foto" onclick="window.lightboxBildKlick(event)">
     <div class="lightbox-annotations" id="lightboxAnnotations"></div>
-    <button id="lightboxDownloadBtn" title="Foto herunterladen" onclick="event.stopPropagation(); window.lightboxFotoHerunterladen()"
+    <button id="lightboxDownloadBtn" title="Foto herunterladen" onclick="window.lightboxFotoHerunterladen()"
       style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.55);border:none;color:white;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;">⬇ Download</button>
+    <button id="lightboxBearbeitenBtn" title="Annotationen bearbeiten" onclick="window.lightboxBearbeitenUmschalten()"
+      style="position:absolute;top:8px;right:110px;background:rgba(0,0,0,0.55);border:none;color:white;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;">✏️ Bearbeiten</button>
+  </div>
+  <div id="lightboxToolbar" class="lightbox-toolbar" style="display:none" onclick="event.stopPropagation()">
+    <div class="lightbox-toolbar-row">
+      <span class="lightbox-toolbar-label">Form:</span>
+      <button class="lb-form-btn active" data-typ="0" onclick="window.lightboxTypWaehlen(0, event)">📍 Punkt</button>
+      <button class="lb-form-btn" data-typ="1" onclick="window.lightboxTypWaehlen(1, event)">↗ Pfeil</button>
+      <button class="lb-form-btn" data-typ="2" onclick="window.lightboxTypWaehlen(2, event)">○ Kreis</button>
+      <button class="lb-form-btn" data-typ="3" onclick="window.lightboxTypWaehlen(3, event)">□ Rechteck</button>
+    </div>
+    <div class="lightbox-toolbar-row">
+      <span class="lightbox-toolbar-label">Farbe:</span>
+      <span class="lb-farbe-btn active" style="background:#e53935" data-farbe="4294901760" onclick="window.lightboxFarbeWaehlen(4294901760, event)"></span>
+      <span class="lb-farbe-btn" style="background:#fdd835" data-farbe="4294967040" onclick="window.lightboxFarbeWaehlen(4294967040, event)"></span>
+      <span class="lb-farbe-btn" style="background:#43a047" data-farbe="4278255360" onclick="window.lightboxFarbeWaehlen(4278255360, event)"></span>
+      <span class="lb-farbe-btn" style="background:#1e88e5" data-farbe="4278190335" onclick="window.lightboxFarbeWaehlen(4278190335, event)"></span>
+      <span class="lb-farbe-btn" style="background:#ffffff;border:1px solid #999" data-farbe="4294967295" onclick="window.lightboxFarbeWaehlen(4294967295, event)"></span>
+      <input id="lightboxText" type="text" placeholder="Text (nur bei Punkt nötig)…" style="flex:1;margin-left:10px">
+    </div>
+    <div class="lightbox-toolbar-row" style="justify-content:flex-end">
+      <span style="font-size:11px;color:#ccc;margin-right:auto">Zum Platzieren aufs Foto klicken · Ziehpunkte zum Verschieben/Anpassen</span>
+      <button class="btn-sm btn-sm-blue" onclick="window.lightboxSpeichern()">Speichern</button>
+    </div>
   </div>
 </div>
 
@@ -994,20 +1036,199 @@
   window.fotoAnzeigen = function(fotoId) {
     const foto = window._fotoMap ? window._fotoMap[fotoId] : null;
     if (!foto) return;
+    window._lightboxFotoId = fotoId;
+    window._lightboxBearbeiten = false;
+    document.getElementById('lightboxToolbar').style.display = 'none';
+    document.getElementById('lightboxBearbeitenBtn').textContent = '✏️ Bearbeiten';
     const img = document.getElementById('lightboxImg');
-    const annotEl = document.getElementById('lightboxAnnotations');
-    const render = () => {
-      const w = img.clientWidth, h = img.clientHeight;
-      annotEl.innerHTML = (foto.annotationen || []).map(a => renderAnnotation(a, w, h)).join('');
-    };
-    img.onload = render;
+    img.onload = window.lightboxRender;
     img.src = foto.url;
     document.getElementById('lightbox').classList.add('open');
-    if (img.complete) render(); // Bild ggf. schon aus Cache verfügbar, onload feuert dann u.U. nicht erneut
+    if (img.complete) window.lightboxRender(); // Bild ggf. schon aus Cache verfügbar, onload feuert dann u.U. nicht erneut
   };
   window.fotoSchliessen = function() {
     document.getElementById('lightbox').classList.remove('open');
   };
+
+  // ── Annotationen direkt am PC bearbeiten ────────────────────────────────
+  // Mausereignisse (mousedown/mousemove/mouseup) haben - anders als am Handy -
+  // keine konkurrierende Zoom/Pan-Geste, mit der sie um dieselbe Berührung
+  // "kämpfen" müssten - daher hier unkompliziert direkt umsetzbar.
+  window._lightboxBearbeiten = false;
+  window._lightboxTyp = 0;      // 0=Punkt,1=Pfeil,2=Kreis,3=Rechteck
+  window._lightboxFarbe = 4294901760; // Rot (ARGB), passend zum Farbformat der App
+  window._ziehIndex = null;
+  window._ziehGroesse = false;
+  window._ziehStartRelX = 0;
+  window._ziehStartRelY = 0;
+  window._ziehStartPos = null;
+  window._ziehStartPos2 = null;
+
+  window.lightboxRender = function() {
+    const foto = window._fotoMap[window._lightboxFotoId];
+    if (!foto) return;
+    const img = document.getElementById('lightboxImg');
+    const w = img.clientWidth, h = img.clientHeight;
+    const annotationen = foto.annotationen || [];
+    document.getElementById('lightboxAnnotations').innerHTML = window._lightboxBearbeiten
+      ? annotationen.map((a, i) => renderAnnotationBearbeitbar(a, i, w, h)).join('')
+      : annotationen.map(a => renderAnnotation(a, w, h)).join('');
+  };
+
+  window.lightboxBearbeitenUmschalten = function() {
+    window._lightboxBearbeiten = !window._lightboxBearbeiten;
+    document.getElementById('lightboxToolbar').style.display = window._lightboxBearbeiten ? 'flex' : 'none';
+    document.getElementById('lightboxBearbeitenBtn').textContent = window._lightboxBearbeiten ? '✓ Fertig' : '✏️ Bearbeiten';
+    document.getElementById('lightboxImg').style.cursor = window._lightboxBearbeiten ? 'crosshair' : 'default';
+    window.lightboxRender();
+  };
+
+  window.lightboxTypWaehlen = function(typ, ev) {
+    ev.stopPropagation();
+    window._lightboxTyp = typ;
+    document.querySelectorAll('.lb-form-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.typ) === typ));
+  };
+
+  window.lightboxFarbeWaehlen = function(farbe, ev) {
+    ev.stopPropagation();
+    window._lightboxFarbe = farbe;
+    document.querySelectorAll('.lb-farbe-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.farbe) === farbe));
+  };
+
+  window.lightboxBildKlick = function(ev) {
+    if (!window._lightboxBearbeiten) return;
+    if (window._ziehIndex != null) return; // während des Ziehens keine neue Markierung anlegen
+    const img = document.getElementById('lightboxImg');
+    const rect = img.getBoundingClientRect();
+    const relX = (ev.clientX - rect.left) / rect.width;
+    const relY = (ev.clientY - rect.top) / rect.height;
+    if (relX < 0 || relX > 1 || relY < 0 || relY > 1) return;
+    const foto = window._fotoMap[window._lightboxFotoId];
+    if (!foto.annotationen) foto.annotationen = [];
+    const typ = window._lightboxTyp;
+    const farbe = window._lightboxFarbe;
+    const text = document.getElementById('lightboxText').value.trim();
+    if (typ === 0) {
+      if (!text) { alert('Zuerst Text eingeben'); return; }
+      foto.annotationen.push({ x: relX, y: relY, text, color: farbe, typ: 0 });
+    } else {
+      const g = 0.12;
+      foto.annotationen.push({
+        x: relX, y: relY,
+        x2: Math.min(1, relX + g), y2: Math.min(1, relY + g),
+        text, color: farbe, typ,
+      });
+    }
+    document.getElementById('lightboxText').value = '';
+    window.lightboxRender();
+  };
+
+  window.markerZiehStart = function(ev, index, groesse) {
+    ev.stopPropagation();
+    ev.preventDefault();
+    const foto = window._fotoMap[window._lightboxFotoId];
+    const a = foto.annotationen[index];
+    const img = document.getElementById('lightboxImg');
+    const rect = img.getBoundingClientRect();
+    window._ziehIndex = index;
+    window._ziehGroesse = !!groesse;
+    window._ziehStartRelX = (ev.clientX - rect.left) / rect.width;
+    window._ziehStartRelY = (ev.clientY - rect.top) / rect.height;
+    window._ziehStartPos = { x: a.x, y: a.y };
+    window._ziehStartPos2 = (a.x2 != null) ? { x: a.x2, y: a.y2 } : null;
+    document.addEventListener('mousemove', window._markerZiehMove);
+    document.addEventListener('mouseup', window._markerZiehEnd);
+  };
+
+  window._markerZiehMove = function(ev) {
+    if (window._ziehIndex == null) return;
+    const img = document.getElementById('lightboxImg');
+    const rect = img.getBoundingClientRect();
+    const relX = Math.min(1, Math.max(0, (ev.clientX - rect.left) / rect.width));
+    const relY = Math.min(1, Math.max(0, (ev.clientY - rect.top) / rect.height));
+    const foto = window._fotoMap[window._lightboxFotoId];
+    const a = foto.annotationen[window._ziehIndex];
+    if (window._ziehGroesse && a.x2 != null) {
+      a.x2 = relX; a.y2 = relY; // Größe/Richtung: Endpunkt folgt direkt der Maus
+    } else if (a.x2 != null) {
+      // Ganze Form verschieben: beide Punkte um denselben Versatz bewegen.
+      const dx = relX - window._ziehStartRelX, dy = relY - window._ziehStartRelY;
+      a.x = window._ziehStartPos.x + dx;
+      a.y = window._ziehStartPos.y + dy;
+      a.x2 = window._ziehStartPos2.x + dx;
+      a.y2 = window._ziehStartPos2.y + dy;
+    } else {
+      a.x = relX; a.y = relY; // Punkt-Markierung: direkt der Maus folgen
+    }
+    window.lightboxRender();
+  };
+
+  window._markerZiehEnd = function() {
+    window._ziehIndex = null;
+    window._ziehGroesse = false;
+    document.removeEventListener('mousemove', window._markerZiehMove);
+    document.removeEventListener('mouseup', window._markerZiehEnd);
+  };
+
+  window.lightboxLoeschen = function(index, ev) {
+    if (ev) ev.stopPropagation();
+    const foto = window._fotoMap[window._lightboxFotoId];
+    foto.annotationen.splice(index, 1);
+    window.lightboxRender();
+  };
+
+  window.lightboxSpeichern = async function() {
+    await window.saveToFirebase();
+    window._lightboxBearbeiten = false;
+    document.getElementById('lightboxToolbar').style.display = 'none';
+    document.getElementById('lightboxBearbeitenBtn').textContent = '✏️ Bearbeiten';
+    document.getElementById('lightboxImg').style.cursor = 'default';
+    window.lightboxRender();
+    setStatus('✓ Annotationen gespeichert', true);
+    renderNotizen();
+  };
+
+  // Wie renderAnnotation(), aber mit Ziehpunkten (Verschieben/Größe) und
+  // Löschen-Symbol - nur im Bearbeiten-Modus verwendet.
+  function renderAnnotationBearbeitbar(a, i, w, h) {
+    const farbe = argbZuCss(a.color);
+    const textFarbe = hellGenugFuerSchwarzenText(a.color) ? '#000' : '#fff';
+    const typ = a.typ || 0;
+
+    if (typ === 0 || a.x2 == null || a.y2 == null) {
+      return `<div class="annot-marker" style="left:${a.x * 100}%; top:${a.y * 100}%; pointer-events:auto; cursor:grab;"
+            onmousedown="window.markerZiehStart(event, ${i})">
+          <div class="annot-dot" style="background:${farbe}"></div>
+          ${a.text ? `<div class="annot-label" style="background:${farbe}; color:${textFarbe}">${a.text}</div>` : ''}
+        </div>
+        <div class="lb-del-badge" style="left:${a.x * 100}%; top:${a.y * 100}%;" onclick="window.lightboxLoeschen(${i}, event)">✕</div>`;
+    }
+
+    const x1 = a.x * w, y1 = a.y * h, x2 = a.x2 * w, y2 = a.y2 * h;
+    const mitteX = (x1 + x2) / 2, mitteY = (y1 + y2) / 2;
+    let form = '';
+    if (typ === 1) {
+      const winkel = Math.atan2(y2 - y1, x2 - x1);
+      const spitzeLaenge = 14, spitzeWinkel = 0.5;
+      const p1x = x2 - Math.cos(winkel - spitzeWinkel) * spitzeLaenge, p1y = y2 - Math.sin(winkel - spitzeWinkel) * spitzeLaenge;
+      const p2x = x2 - Math.cos(winkel + spitzeWinkel) * spitzeLaenge, p2y = y2 - Math.sin(winkel + spitzeWinkel) * spitzeLaenge;
+      form = `<svg style="position:absolute;left:0;top:0;width:${w}px;height:${h}px;pointer-events:none;">
+          <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${farbe}" stroke-width="3" stroke-linecap="round"/>
+          <polygon points="${x2},${y2} ${p1x},${p1y} ${p2x},${p2y}" fill="${farbe}"/>
+        </svg>`;
+    } else if (typ === 2) {
+      const radius = Math.hypot(x2 - x1, y2 - y1);
+      form = `<div style="position:absolute;left:${x1 - radius}px;top:${y1 - radius}px;width:${radius * 2}px;height:${radius * 2}px;border-radius:50%;border:3px solid ${farbe};box-sizing:border-box;pointer-events:none;"></div>`;
+    } else {
+      const links = Math.min(x1, x2), oben = Math.min(y1, y2), breite = Math.abs(x1 - x2), hoehe = Math.abs(y1 - y2);
+      form = `<div style="position:absolute;left:${links}px;top:${oben}px;width:${breite}px;height:${hoehe}px;border:3px solid ${farbe};box-sizing:border-box;pointer-events:none;"></div>`;
+    }
+    return `${form}
+      ${a.text ? `<div class="annot-label" style="position:absolute;left:${mitteX}px;top:${mitteY - 26}px;background:${farbe};color:${textFarbe};transform:translate(-50%,-100%);pointer-events:none;">${a.text}</div>` : ''}
+      <div class="lb-handle" style="left:${mitteX}px;top:${mitteY}px;background:${farbe};" onmousedown="window.markerZiehStart(event, ${i}, false)"></div>
+      <div class="lb-handle" style="left:${x2}px;top:${y2}px;background:${farbe};" onmousedown="window.markerZiehStart(event, ${i}, true)"></div>
+      <div class="lb-del-badge" style="left:${mitteX}px;top:${mitteY}px;" onclick="window.lightboxLoeschen(${i}, event)">✕</div>`;
+  }
 
   window.lightboxFotoHerunterladen = async function() {
     const url = document.getElementById('lightboxImg').src;
