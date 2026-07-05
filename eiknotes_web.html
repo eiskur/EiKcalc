@@ -211,24 +211,14 @@
       <button class="modal-close" onclick="closeModal('modalNotiz')">✕</button>
     </div>
     <div class="modal-body">
-      <div class="sec-label">Messung</div>
+      <div class="sec-label">Benennung</div>
       <div class="field-group">
-        <label>Messpunkt / Bauteil</label>
-        <input id="notizMesspunkt" type="text" placeholder="z.B. Antriebslager links">
+        <label>Benennung</label>
+        <input id="notizBenennung" type="text" placeholder="z.B. Antriebslager links">
       </div>
-      <div class="field-row-3">
-        <div class="field-group">
-          <label>Messwert</label>
-          <input id="notizMesswert" type="text" placeholder="0.00">
-        </div>
-        <div class="field-group">
-          <label>Einheit</label>
-          <input id="notizEinheit" type="text" placeholder="mm/s">
-        </div>
-        <div class="field-group">
-          <label>Grenzwert</label>
-          <input id="notizGrenzwert" type="text" placeholder="0.00">
-        </div>
+      <div class="field-group">
+        <label>Zyklenzahl</label>
+        <input id="notizZyklenzahl" type="text" placeholder="0">
       </div>
       <div class="sec-label">Bewertung</div>
       <div class="bewertung-btns">
@@ -530,13 +520,13 @@
           <div class="notiz-head ${bewClass(n.bewertung)}">
             <span>${bewIcon(n.bewertung)}</span>
             <div style="flex:1">
-              <div class="notiz-title">${n.messpunkt || 'Ohne Messpunkt'}</div>
+              <div class="notiz-title">${n.benennung || n.messpunkt || 'Ohne Benennung'}</div>
               <div class="notiz-date">${formatDatum(n.datum)}</div>
             </div>
             <span style="font-size:11px;color:var(--muted)">${bewLabel(n.bewertung)}</span>
           </div>
           <div class="notiz-body">
-            ${n.messwert ? `<div class="notiz-row">📏 <span>${n.messwert} ${n.einheit||''}${n.grenzwert ? ' / GW: '+n.grenzwert+' '+(n.einheit||'') : ''}</span></div>` : ''}
+            ${(n.zyklenzahl || n.messwert) ? `<div class="notiz-row">🔁 <span>Zyklenzahl: ${n.zyklenzahl || n.messwert}</span></div>` : ''}
             ${n.bemerkung ? `<div class="notiz-bem">${n.bemerkung}</div>` : ''}
             ${(n.fotos||[]).filter(f => f.url).length > 0 ? `
             <div class="notiz-fotos">
@@ -608,16 +598,14 @@
     // ersten "Speichern" schon zu einem stabilen Storage-Pfad hochgeladen
     // werden können.
     window._aktNotizIdFuerUpload = uuid();
-    document.getElementById('modalNotizTitel').textContent = 'Neue Messnotiz';
-    document.getElementById('notizMesspunkt').value = '';
-    document.getElementById('notizMesswert').value = '';
-    document.getElementById('notizEinheit').value = '';
-    document.getElementById('notizGrenzwert').value = '';
+    document.getElementById('modalNotizTitel').textContent = 'Neue Notiz';
+    document.getElementById('notizBenennung').value = '';
+    document.getElementById('notizZyklenzahl').value = '';
     document.getElementById('notizBemerkung').value = '';
     setBewertung('ok');
     renderNotizFotoGrid();
     openModal('modalNotiz');
-    setTimeout(() => document.getElementById('notizMesspunkt').focus(), 100);
+    setTimeout(() => document.getElementById('notizBenennung').focus(), 100);
   }
 
   window.notizBearbeiten = function(id) {
@@ -631,11 +619,9 @@
     const bMap = [null, 'ok', 'warn', 'nok'];
     const bStr = n.bewertung === 0 ? 'ok' : n.bewertung === 1 ? 'warn' : 'nok';
     window._aktBewertung = bStr;
-    document.getElementById('modalNotizTitel').textContent = 'Messnotiz bearbeiten';
-    document.getElementById('notizMesspunkt').value = n.messpunkt || '';
-    document.getElementById('notizMesswert').value = n.messwert || '';
-    document.getElementById('notizEinheit').value = n.einheit || '';
-    document.getElementById('notizGrenzwert').value = n.grenzwert || '';
+    document.getElementById('modalNotizTitel').textContent = 'Notiz bearbeiten';
+    document.getElementById('notizBenennung').value = n.benennung || n.messpunkt || '';
+    document.getElementById('notizZyklenzahl').value = n.zyklenzahl || n.messwert || '';
     document.getElementById('notizBemerkung').value = n.bemerkung || '';
     setBewertung(bStr);
     renderNotizFotoGrid();
@@ -653,10 +639,8 @@
     // bzw. Löschen im Modal). So gehen bestehende (z.B. vom Handy hochgeladene)
     // Fotos beim Speichern am PC nicht verloren.
     const data = {
-      messpunkt: document.getElementById('notizMesspunkt').value.trim(),
-      messwert: document.getElementById('notizMesswert').value.trim(),
-      einheit: document.getElementById('notizEinheit').value.trim(),
-      grenzwert: document.getElementById('notizGrenzwert').value.trim(),
+      benennung: document.getElementById('notizBenennung').value.trim(),
+      zyklenzahl: document.getElementById('notizZyklenzahl').value.trim(),
       bemerkung: document.getElementById('notizBemerkung').value.trim(),
       bewertung: bew,
       fotos: window._aktFotos
