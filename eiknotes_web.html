@@ -137,7 +137,7 @@
   <div><h1>EiKnotes</h1><p>Feldprotokoll — PC Ansicht</p></div>
   <div class="header-btns">
     <button class="btn btn-outline" onclick="syncFirebase()">🔄 Synchronisieren</button>
-    <button class="btn btn-green" onclick="neueAnlage()">+ Neues Messprojekt</button>
+    <button class="btn btn-green" onclick="neueAnlage()">+ Neuer Eintrag</button>
   </div>
 </header>
 
@@ -168,7 +168,7 @@
 <div class="modal-bg" id="modalAnlage">
   <div class="modal">
     <div class="modal-header">
-      <h3 id="modalAnlageTitel">Neues Messprojekt</h3>
+      <h3 id="modalAnlageTitel">Neuer Eintrag</h3>
       <button class="modal-close" onclick="closeModal('modalAnlage')">✕</button>
     </div>
     <div class="modal-body">
@@ -510,7 +510,7 @@
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-outline" style="color:var(--red);border-color:var(--red);background:white" onclick="window.anlageLoeschen('${a.id}')">Anlage löschen</button>
-          <button class="btn btn-blue" onclick="neueNotiz()">+ Neue Messung</button>
+          <button class="btn btn-blue" onclick="neueNotiz()">+ Neue Notiz</button>
         </div>
       </div>
       ${notizen.length === 0
@@ -546,7 +546,7 @@
 
   // ── Anlage ────────────────────────────────────────────────────────────
   function neueAnlage() {
-    document.getElementById('modalAnlageTitel').textContent = 'Neues Messprojekt';
+    document.getElementById('modalAnlageTitel').textContent = 'Neuer Eintrag';
     document.getElementById('anlageName').value = '';
     document.getElementById('anlageMonat').value = new Date().getMonth() + 1;
     document.getElementById('anlageJahr').value = new Date().getFullYear();
