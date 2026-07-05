@@ -473,7 +473,7 @@
         <div class="anlage-name" style="padding-right:26px">${a.name}</div>
         <div class="anlage-meta">
           <span>${String(a.monat).padStart(2,'0')}.${a.jahr}</span>
-          <span>${(a.notizen||[]).length} Messungen</span>
+          <span>${(a.notizen||[]).length} Notizen</span>
           ${nok > 0 ? `<span class="badge badge-red">${nok} NOK</span>` : ''}
           ${warn > 0 ? `<span class="badge badge-orange">${warn} Warn</span>` : ''}
         </div>
@@ -506,7 +506,7 @@
       <div class="section-header">
         <div>
           <h2>${a.name}</h2>
-          <p>${String(a.monat).padStart(2,'0')}.${a.jahr} · ${notizen.length} Messung${notizen.length===1?'':'en'}</p>
+          <p>${String(a.monat).padStart(2,'0')}.${a.jahr} · ${notizen.length} Notiz${notizen.length===1?'':'en'}</p>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-outline" style="color:var(--red);border-color:var(--red);background:white" onclick="window.anlageLoeschen('${a.id}')">Anlage löschen</button>
