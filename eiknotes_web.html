@@ -38,6 +38,11 @@
   .anlage-item.active { background: #EEF4FD; border-left: 3px solid var(--blue); }
   .anlage-name { font-weight: 700; font-size: 14px; color: var(--text); }
   .anlage-meta { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; gap: 10px; align-items: center; }
+  .notiz-foto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-bottom: 6px; }
+  .notiz-foto-item { position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 1.2; background: var(--bg); border: 1px solid var(--border); }
+  .notiz-foto-item img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
+  .notiz-foto-item .foto-del-btn { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.55); border: none; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; line-height: 1; cursor: pointer; }
+  .notiz-foto-item .foto-uploading { position: absolute; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; color: white; }
   .badge-red { background: var(--red); }
   .badge-orange { background: var(--orange); }
@@ -244,6 +249,11 @@
       <div class="field-group">
         <textarea id="notizBemerkung" rows="4" placeholder="Notizen, Beobachtungen…"></textarea>
       </div>
+      <div class="sec-label">Fotos</div>
+      <input type="file" id="notizFotoInput" accept="image/*" multiple style="display:none">
+      <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:10px"
+        onclick="document.getElementById('notizFotoInput').click()">📷 Foto hinzufügen</button>
+      <div id="notizFotoGrid" class="notiz-foto-grid"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" style="color:var(--text);background:var(--bg);border:1px solid var(--border)" onclick="closeModal('modalNotiz')">Abbrechen</button>
@@ -264,6 +274,7 @@
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
   import { getDatabase, ref, set, get, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+  import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
   const firebaseConfig = {
     apiKey: 'AIzaSyC6o4DPT_ux5yTtM8Zum3odZIKAPKP4avE',
@@ -277,6 +288,7 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
+  const storage = getStorage(app, 'gs://eikcalc.firebasestorage.app');
   const dbRef = ref(db, 'eiknotes/anlagen');
   const fotoUrlsRef = ref(db, 'eiknotes/foto_urls');
 
@@ -286,6 +298,11 @@
   window._set = set;
   window._get = get;
   window._ref = ref;
+  window._storage = storage;
+  window._storageRef = storageRef;
+  window._uploadBytes = uploadBytes;
+  window._getDownloadURL = getDownloadURL;
+  window._deleteObject = deleteObject;
   window._fotoUrls = {};
 
   // Patcht fehlende/veraltete Foto-URLs (fotoId -> url) direkt in die
@@ -399,6 +416,8 @@
   window._aktAnlageId = null;
   window._aktNotizId = null;
   window._aktBewertung = 'ok';
+  window._aktFotos = [];       // Fotos der gerade im Modal bearbeiteten Messnotiz
+  window._aktAnlageIdFuerUpload = null; // anlageId zum Zeitpunkt des Öffnens des Modals
 
   // Jahr-Dropdown befüllen
   const jSelect = document.getElementById('anlageJahr');
@@ -410,6 +429,7 @@
     jSelect.appendChild(o);
   }
   document.getElementById('anlageMonat').value = now.getMonth() + 1;
+  document.getElementById('notizFotoInput').addEventListener('change', handleNotizFotoUpload);
 
   function setStatus(msg, ok = null) {
     const el = document.getElementById('statusBar');
@@ -571,6 +591,12 @@
     if (!window.getAktAnlage()) { alert('Bitte zuerst eine Anlage auswählen'); return; }
     window._aktNotizId = null;
     window._aktBewertung = 'ok';
+    window._aktFotos = [];
+    window._aktAnlageIdFuerUpload = window._aktAnlageId;
+    // Feste, temporäre Notiz-ID schon jetzt vergeben, damit Fotos vor dem
+    // ersten "Speichern" schon zu einem stabilen Storage-Pfad hochgeladen
+    // werden können.
+    window._aktNotizIdFuerUpload = uuid();
     document.getElementById('modalNotizTitel').textContent = 'Neue Messnotiz';
     document.getElementById('notizMesspunkt').value = '';
     document.getElementById('notizMesswert').value = '';
@@ -578,6 +604,7 @@
     document.getElementById('notizGrenzwert').value = '';
     document.getElementById('notizBemerkung').value = '';
     setBewertung('ok');
+    renderNotizFotoGrid();
     openModal('modalNotiz');
     setTimeout(() => document.getElementById('notizMesspunkt').focus(), 100);
   }
@@ -587,6 +614,9 @@
     const n = a.notizen.find(x => x.id === id);
     if (!n) return;
     window._aktNotizId = id;
+    window._aktNotizIdFuerUpload = id;
+    window._aktAnlageIdFuerUpload = a.id;
+    window._aktFotos = (n.fotos || []).map(f => ({ ...f }));
     const bMap = [null, 'ok', 'warn', 'nok'];
     const bStr = n.bewertung === 0 ? 'ok' : n.bewertung === 1 ? 'warn' : 'nok';
     window._aktBewertung = bStr;
@@ -597,6 +627,7 @@
     document.getElementById('notizGrenzwert').value = n.grenzwert || '';
     document.getElementById('notizBemerkung').value = n.bemerkung || '';
     setBewertung(bStr);
+    renderNotizFotoGrid();
     openModal('modalNotiz');
   };
 
@@ -605,24 +636,27 @@
     if (!a) { alert('Keine Anlage ausgewählt'); return; }
     const bewMap = { ok: 0, warn: 1, nok: 2 };
     const bew = bewMap[window._aktBewertung] ?? 0;
-    // WICHTIG: 'fotos' bewusst NICHT in data — sonst würde das Bearbeiten
-    // eines bestehenden Eintrags am PC die vom Handy hochgeladenen Fotos
-    // löschen (Object.assign würde fotos:[] drüberschreiben).
+    // 'fotos' kommt jetzt bewusst aus window._aktFotos: das ist der einzige
+    // Ort, an dem Fotos für diese Notiz verwaltet werden (befüllt beim Öffnen
+    // des Modals mit den bestehenden Fotos, ergänzt/reduziert durch Hinzufügen
+    // bzw. Löschen im Modal). So gehen bestehende (z.B. vom Handy hochgeladene)
+    // Fotos beim Speichern am PC nicht verloren.
     const data = {
       messpunkt: document.getElementById('notizMesspunkt').value.trim(),
       messwert: document.getElementById('notizMesswert').value.trim(),
       einheit: document.getElementById('notizEinheit').value.trim(),
       grenzwert: document.getElementById('notizGrenzwert').value.trim(),
       bemerkung: document.getElementById('notizBemerkung').value.trim(),
-      bewertung: bew
+      bewertung: bew,
+      fotos: window._aktFotos
     };
     if (!a.notizen || !Array.isArray(a.notizen)) a.notizen = [];
     if (window._aktNotizId) {
       const i = a.notizen.findIndex(n => n.id === window._aktNotizId);
       if (i >= 0) { Object.assign(a.notizen[i], data); }
-      else { a.notizen.unshift({ id: uuid(), datum: new Date().toISOString(), fotos: [], ...data }); }
+      else { a.notizen.unshift({ id: window._aktNotizIdFuerUpload || uuid(), datum: new Date().toISOString(), ...data }); }
     } else {
-      a.notizen.unshift({ id: uuid(), datum: new Date().toISOString(), fotos: [], ...data });
+      a.notizen.unshift({ id: window._aktNotizIdFuerUpload || uuid(), datum: new Date().toISOString(), ...data });
     }
     // Anlage in _anlagen aktualisieren
     const ai = window._anlagen.findIndex(x => x.id === a.id);
@@ -639,6 +673,55 @@
     a.notizen = a.notizen.filter(n => n.id !== id);
     await window.saveToFirebase();
     renderNotizen();
+  };
+
+  // ── Fotos im Messnotiz-Modal ─────────────────────────────────────────
+  function renderNotizFotoGrid() {
+    const el = document.getElementById('notizFotoGrid');
+    el.innerHTML = window._aktFotos.map(f => `
+      <div class="notiz-foto-item" data-foto-id="${f.id}">
+        ${f.url ? `<img src="${f.url}" onclick="window.open('${f.url}','_blank')">` : `<div class="foto-uploading">Hochladen…</div>`}
+        <button class="foto-del-btn" title="Foto löschen" onclick="window.notizFotoLoeschen('${f.id}')">✕</button>
+      </div>`).join('');
+  }
+  window.renderNotizFotoGrid = renderNotizFotoGrid;
+
+  async function handleNotizFotoUpload(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = ''; // erlaubt erneutes Auswählen derselben Datei
+    if (files.length === 0) return;
+    const anlageId = window._aktAnlageIdFuerUpload;
+    const notizId = window._aktNotizIdFuerUpload;
+    if (!anlageId || !notizId) { alert('Bitte zuerst eine Messnotiz öffnen/anlegen'); return; }
+    for (const file of files) {
+      const fotoId = uuid();
+      // Platzhalter sofort anzeigen (Spinner), damit man sieht dass etwas passiert
+      window._aktFotos.push({ id: fotoId, pfad: '', url: null, annotationen: [] });
+      renderNotizFotoGrid();
+      try {
+        const sRef = window._storageRef(window._storage, `eiknotes/${anlageId}/${notizId}/${uuid()}.jpg`);
+        await window._uploadBytes(sRef, file);
+        const url = await window._getDownloadURL(sRef);
+        const i = window._aktFotos.findIndex(f => f.id === fotoId);
+        if (i >= 0) window._aktFotos[i].url = url;
+        // Zusätzlich robust in den separaten foto_urls-Knoten schreiben
+        // (gleiches Prinzip wie in der App: URL geht so nie verloren, auch
+        // wenn das Speichern der Notiz danach fehlschlägt/abgebrochen wird).
+        try { await window._set(window._ref(window._db, `eiknotes/foto_urls/${fotoId}`), url); } catch (_) {}
+        renderNotizFotoGrid();
+      } catch (e) {
+        console.error('Foto-Upload fehlgeschlagen:', e);
+        window._aktFotos = window._aktFotos.filter(f => f.id !== fotoId);
+        renderNotizFotoGrid();
+        alert('Foto-Upload fehlgeschlagen: ' + e.message);
+      }
+    }
+  }
+
+  window.notizFotoLoeschen = function(fotoId) {
+    if (!confirm('Foto löschen?')) return;
+    window._aktFotos = window._aktFotos.filter(f => f.id !== fotoId);
+    renderNotizFotoGrid();
   };
 
   // ── Modal ────────────────────────────────────────────────────────────
