@@ -745,20 +745,60 @@
     return (r * 299 + g * 587 + b * 114) / 1000 > 150;
   }
 
+  // Rendert eine einzelne Annotation (Punkt/Pfeil/Kreis/Rechteck) als HTML.
+  // w/h = tatsächliche gerenderte Bildgröße in Pixeln (für Pfeil/Kreis/Rechteck
+  // nötig, da Kreisradius bei nicht-quadratischem Bild sonst verzerrt wäre).
+  function renderAnnotation(a, w, h) {
+    const farbe = argbZuCss(a.color);
+    const textFarbe = hellGenugFuerSchwarzenText(a.color) ? '#000' : '#fff';
+    const typ = a.typ || 0; // 0=Punkt, 1=Pfeil, 2=Kreis, 3=Rechteck (Rückwärtskompatibel: alte Daten ohne 'typ' = Punkt)
+
+    if (typ === 0 || a.x2 == null || a.y2 == null) {
+      return `<div class="annot-marker" style="left:${a.x * 100}%; top:${a.y * 100}%;">
+        <div class="annot-dot" style="background:${farbe}"></div>
+        ${a.text ? `<div class="annot-label" style="background:${farbe}; color:${textFarbe}">${a.text}</div>` : ''}
+      </div>`;
+    }
+
+    const x1 = a.x * w, y1 = a.y * h, x2 = a.x2 * w, y2 = a.y2 * h;
+
+    if (typ === 1) {
+      const winkel = Math.atan2(y2 - y1, x2 - x1);
+      const spitzeLaenge = 14, spitzeWinkel = 0.5;
+      const p1x = x2 - Math.cos(winkel - spitzeWinkel) * spitzeLaenge, p1y = y2 - Math.sin(winkel - spitzeWinkel) * spitzeLaenge;
+      const p2x = x2 - Math.cos(winkel + spitzeWinkel) * spitzeLaenge, p2y = y2 - Math.sin(winkel + spitzeWinkel) * spitzeLaenge;
+      return `<svg style="position:absolute;left:0;top:0;width:${w}px;height:${h}px;pointer-events:none;">
+          <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${farbe}" stroke-width="3" stroke-linecap="round"/>
+          <polygon points="${x2},${y2} ${p1x},${p1y} ${p2x},${p2y}" fill="${farbe}"/>
+        </svg>
+        ${a.text ? `<div class="annot-label" style="position:absolute;left:${(x1 + x2) / 2}px;top:${(y1 + y2) / 2}px;background:${farbe};color:${textFarbe};transform:translate(-50%,-50%)">${a.text}</div>` : ''}`;
+    }
+
+    if (typ === 2) {
+      const radius = Math.hypot(x2 - x1, y2 - y1);
+      return `<div style="position:absolute;left:${x1 - radius}px;top:${y1 - radius}px;width:${radius * 2}px;height:${radius * 2}px;border-radius:50%;border:3px solid ${farbe};box-sizing:border-box;"></div>
+        ${a.text ? `<div class="annot-label" style="position:absolute;left:${x1}px;top:${y1 - radius - 8}px;background:${farbe};color:${textFarbe};transform:translate(-50%,-100%)">${a.text}</div>` : ''}`;
+    }
+
+    // Rechteck
+    const links = Math.min(x1, x2), oben = Math.min(y1, y2), breite = Math.abs(x1 - x2), hoehe = Math.abs(y1 - y2);
+    return `<div style="position:absolute;left:${links}px;top:${oben}px;width:${breite}px;height:${hoehe}px;border:3px solid ${farbe};box-sizing:border-box;"></div>
+      ${a.text ? `<div class="annot-label" style="position:absolute;left:${links}px;top:${oben - 8}px;background:${farbe};color:${textFarbe};transform:translate(0,-100%)">${a.text}</div>` : ''}`;
+  }
+
   window.fotoAnzeigen = function(fotoId) {
     const foto = window._fotoMap ? window._fotoMap[fotoId] : null;
     if (!foto) return;
-    document.getElementById('lightboxImg').src = foto.url;
+    const img = document.getElementById('lightboxImg');
     const annotEl = document.getElementById('lightboxAnnotations');
-    annotEl.innerHTML = (foto.annotationen || []).map(a => {
-      const farbe = argbZuCss(a.color);
-      const textFarbe = hellGenugFuerSchwarzenText(a.color) ? '#000' : '#fff';
-      return `<div class="annot-marker" style="left:${a.x * 100}%; top:${a.y * 100}%;">
-        <div class="annot-dot" style="background:${farbe}"></div>
-        <div class="annot-label" style="background:${farbe}; color:${textFarbe}">${a.text}</div>
-      </div>`;
-    }).join('');
+    const render = () => {
+      const w = img.clientWidth, h = img.clientHeight;
+      annotEl.innerHTML = (foto.annotationen || []).map(a => renderAnnotation(a, w, h)).join('');
+    };
+    img.onload = render;
+    img.src = foto.url;
     document.getElementById('lightbox').classList.add('open');
+    if (img.complete) render(); // Bild ggf. schon aus Cache verfügbar, onload feuert dann u.U. nicht erneut
   };
   window.fotoSchliessen = function() {
     document.getElementById('lightbox').classList.remove('open');
