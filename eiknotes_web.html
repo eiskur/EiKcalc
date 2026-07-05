@@ -41,8 +41,14 @@
   .notiz-foto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-bottom: 6px; }
   .notiz-foto-item { position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 1.2; background: var(--bg); border: 1px solid var(--border); }
   .notiz-foto-item img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
-  .notiz-foto-item .foto-del-btn { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.55); border: none; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; line-height: 1; cursor: pointer; }
+  .notiz-foto-item .foto-del-btn { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.55); border: none; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; line-height: 1; cursor: pointer; z-index: 2; }
   .notiz-foto-item .foto-uploading { position: absolute; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; }
+  .notiz-foto-toolbar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 1px;
+    background: rgba(0,0,0,0.55); opacity: 0; transition: opacity 0.15s; }
+  .notiz-foto-item:hover .notiz-foto-toolbar { opacity: 1; }
+  .notiz-foto-toolbar button { flex: 1; background: none; border: none; color: white; font-size: 13px;
+    padding: 4px 0; cursor: pointer; }
+  .notiz-foto-toolbar button:hover { background: rgba(255,255,255,0.2); }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; color: white; }
   .badge-red { background: var(--red); }
   .badge-orange { background: var(--orange); }
@@ -242,6 +248,7 @@
       </div>
       <div class="sec-label">Fotos</div>
       <input type="file" id="notizFotoInput" accept="image/*" multiple style="display:none">
+      <input type="file" id="notizFotoErsetzenInput" accept="image/*" style="display:none">
       <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:10px"
         onclick="document.getElementById('notizFotoInput').click()">📷 Foto hinzufügen</button>
       <div id="notizFotoGrid" class="notiz-foto-grid"></div>
@@ -431,6 +438,7 @@
   }
   document.getElementById('anlageMonat').value = now.getMonth() + 1;
   document.getElementById('notizFotoInput').addEventListener('change', handleNotizFotoUpload);
+  document.getElementById('notizFotoErsetzenInput').addEventListener('change', handleNotizFotoErsetzen);
 
   function setStatus(msg, ok = null) {
     const el = document.getElementById('statusBar');
@@ -681,6 +689,12 @@
       <div class="notiz-foto-item" data-foto-id="${f.id}">
         ${f.url ? `<img src="${f.url}" onclick="window.open('${f.url}','_blank')">` : `<div class="foto-uploading">Hochladen…</div>`}
         <button class="foto-del-btn" title="Foto löschen" onclick="window.notizFotoLoeschen('${f.id}')">✕</button>
+        ${f.url ? `
+        <div class="notiz-foto-toolbar">
+          <button title="Original herunterladen" onclick="window.fotoHerunterladen('${f.id}')">⬇</button>
+          <button title="Aus Zwischenablage einfügen (nach Bearbeiten extern kopieren)" onclick="window.fotoAusZwischenablageEinfuegen('${f.id}')">📋</button>
+          <button title="Bearbeitete Datei hochladen (ersetzt dieses Foto)" onclick="window.fotoDateiErsetzenStarten('${f.id}')">📁</button>
+        </div>` : ''}
       </div>`).join('');
   }
   window.renderNotizFotoGrid = renderNotizFotoGrid;
@@ -722,6 +736,92 @@
     window._aktFotos = window._aktFotos.filter(f => f.id !== fotoId);
     renderNotizFotoGrid();
   };
+
+  // ── Foto extern bearbeiten (Snagit, Paint, GIMP, o.ä.) und zurückspielen ──
+  window.fotoHerunterladen = async function(fotoId) {
+    const f = window._aktFotos.find(x => x.id === fotoId);
+    if (!f || !f.url) return;
+    try {
+      const resp = await fetch(f.url);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl; a.download = `eiknotes_foto_${fotoId}.jpg`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.error('Download fehlgeschlagen:', e);
+      // Fallback: im neuen Tab öffnen, falls Fetch/CORS nicht klappt
+      window.open(f.url, '_blank');
+    }
+  };
+
+  window.fotoAusZwischenablageEinfuegen = async function(fotoId) {
+    if (!navigator.clipboard || !navigator.clipboard.read) {
+      alert('Diese Funktion braucht Chrome oder Edge über HTTPS. Bitte stattdessen "Datei hochladen" verwenden.');
+      return;
+    }
+    try {
+      const items = await navigator.clipboard.read();
+      let blob = null;
+      for (const item of items) {
+        const typ = item.types.find(t => t.startsWith('image/'));
+        if (typ) { blob = await item.getType(typ); break; }
+      }
+      if (!blob) {
+        alert('Kein Bild in der Zwischenablage gefunden. Erst im Bildbearbeitungsprogramm kopieren (Strg+C), dann hier einfügen.');
+        return;
+      }
+      await fotoErsetzenMitDatei(fotoId, blob);
+    } catch (e) {
+      console.error('Zwischenablage-Fehler:', e);
+      alert('Zwischenablage konnte nicht gelesen werden (Berechtigung verweigert?). Bitte stattdessen "Datei hochladen" verwenden.');
+    }
+  };
+
+  window.fotoDateiErsetzenStarten = function(fotoId) {
+    window._ersetzenZielFotoId = fotoId;
+    document.getElementById('notizFotoErsetzenInput').click();
+  };
+
+  async function handleNotizFotoErsetzen(event) {
+    const file = event.target.files && event.target.files[0];
+    const fotoId = window._ersetzenZielFotoId;
+    event.target.value = '';
+    window._ersetzenZielFotoId = null;
+    if (!file || !fotoId) return;
+    await fotoErsetzenMitDatei(fotoId, file);
+  }
+
+  // Lädt eine neu bearbeitete Version zu Firebase Storage hoch und ersetzt
+  // die URL im bestehenden Foto-Eintrag (gleiche ID, gleiche Position im
+  // Raster). Annotationen aus der App werden zurückgesetzt, da sie sich auf
+  // das alte Bild bezogen und nach externer Bearbeitung nicht mehr passen.
+  async function fotoErsetzenMitDatei(fotoId, datei) {
+    const anlageId = window._aktAnlageIdFuerUpload;
+    const notizId = window._aktNotizIdFuerUpload;
+    if (!anlageId || !notizId) { alert('Bitte zuerst eine Notiz öffnen/anlegen'); return; }
+    const i = window._aktFotos.findIndex(f => f.id === fotoId);
+    if (i < 0) return;
+    const altesUrl = window._aktFotos[i].url;
+    window._aktFotos[i].url = null; // Spinner anzeigen während des Uploads
+    renderNotizFotoGrid();
+    try {
+      const sRef = window._storageRef(window._storage, `eiknotes/${anlageId}/${notizId}/${uuid()}.jpg`);
+      await window._uploadBytes(sRef, datei);
+      const url = await window._getDownloadURL(sRef);
+      window._aktFotos[i].url = url;
+      window._aktFotos[i].annotationen = [];
+      try { await window._set(window._ref(window._db, `eiknotes/foto_urls/${fotoId}`), url); } catch (_) {}
+      renderNotizFotoGrid();
+    } catch (e) {
+      console.error('Foto-Ersetzen fehlgeschlagen:', e);
+      window._aktFotos[i].url = altesUrl;
+      renderNotizFotoGrid();
+      alert('Ersetzen fehlgeschlagen: ' + e.message);
+    }
+  }
 
   // ── Modal ────────────────────────────────────────────────────────────
   function openModal(id) { document.getElementById(id).classList.add('open'); }
