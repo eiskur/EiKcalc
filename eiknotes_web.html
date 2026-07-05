@@ -43,14 +43,6 @@
   .notiz-foto-item img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
   .notiz-foto-item .foto-del-btn { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.55); border: none; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; line-height: 1; cursor: pointer; }
   .notiz-foto-item .foto-uploading { position: absolute; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; }
-  /* Toolbar für externe Bearbeitung (z.B. Snagit): Original herunterladen,
-     bearbeitetes Bild aus Zwischenablage einfügen oder als Datei hochladen.
-     Nur per Hover sichtbar - diese Ansicht ist explizit für PC-Nutzung gedacht. */
-  .foto-toolbar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center;
-    background: rgba(0,0,0,0.65); padding: 3px 0; opacity: 0; transition: opacity 0.15s; }
-  .notiz-foto-item:hover .foto-toolbar { opacity: 1; }
-  .foto-toolbar button { background: none; border: none; color: white; font-size: 13px; cursor: pointer; padding: 1px 5px; line-height: 1.4; }
-  .foto-toolbar button:hover { opacity: 0.7; }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; color: white; }
   .badge-red { background: var(--red); }
   .badge-orange { background: var(--orange); }
@@ -250,14 +242,8 @@
       </div>
       <div class="sec-label">Fotos</div>
       <input type="file" id="notizFotoInput" accept="image/*" multiple style="display:none">
-      <input type="file" id="notizFotoErsetzenInput" accept="image/*" style="display:none">
-      <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:6px"
+      <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:10px"
         onclick="document.getElementById('notizFotoInput').click()">📷 Foto hinzufügen</button>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">
-        Zum externen Bearbeiten (z.B. Snagit): Maus über ein Foto halten → ⬇ öffnet das Original in neuem Tab
-        (dort <b>Strg+S</b> zum Speichern, dann in Snagit öffnen). Bearbeitetes Bild danach per 📋 (Zwischenablage)
-        oder 📁 (Datei) wieder hinterlegen.
-      </div>
       <div id="notizFotoGrid" class="notiz-foto-grid"></div>
     </div>
     <div class="modal-footer">
@@ -695,12 +681,6 @@
       <div class="notiz-foto-item" data-foto-id="${f.id}">
         ${f.url ? `<img src="${f.url}" onclick="window.open('${f.url}','_blank')">` : `<div class="foto-uploading">Hochladen…</div>`}
         <button class="foto-del-btn" title="Foto löschen" onclick="window.notizFotoLoeschen('${f.id}')">✕</button>
-        ${f.url ? `
-        <div class="foto-toolbar">
-          <button title="Original in neuem Tab öffnen (dort Strg+S zum Speichern, dann in Snagit öffnen)" onclick="window.notizFotoHerunterladen('${f.id}')">⬇</button>
-          <button title="Bearbeitetes Bild aus Zwischenablage einfügen (z.B. nach Snagit-Bearbeitung kopiert)" onclick="window.notizFotoAusZwischenablage('${f.id}')">📋</button>
-          <button title="Bearbeitetes Bild als Datei hochladen" onclick="window.notizFotoDateiErsetzen('${f.id}')">📁</button>
-        </div>` : ''}
       </div>`).join('');
   }
   window.renderNotizFotoGrid = renderNotizFotoGrid;
@@ -742,90 +722,6 @@
     window._aktFotos = window._aktFotos.filter(f => f.id !== fotoId);
     renderNotizFotoGrid();
   };
-
-  // ── Externe Bearbeitung (z.B. Snagit) ────────────────────────────────
-  // Original in neuem Tab öffnen, damit man es extern bearbeiten kann.
-  // HINWEIS: Ein direkter Skript-Download (fetch+Blob) scheitert hier an
-  // fehlenden CORS-Freigaben des Firebase-Storage-Speicherorts - das lässt
-  // sich nur über eine Firebase/Google-Cloud-Konfiguration beheben. Der
-  // zuverlässige Weg ganz ohne Server-Änderung: Bild in neuem Tab anzeigen
-  // und den Nutzer per eingebauter Browser-Funktion (Strg+S) speichern
-  // lassen - das funktioniert unabhängig von CORS immer.
-  window.notizFotoHerunterladen = function(fotoId) {
-    const f = window._aktFotos.find(x => x.id === fotoId);
-    if (!f || !f.url) return;
-    setStatus('Foto geöffnet – im neuen Tab jetzt Strg+S drücken zum Speichern, danach mit Snagit öffnen', true);
-    window.open(f.url, '_blank');
-  };
-
-  // Lädt einen Blob (aus Zwischenablage oder Datei-Dialog) als Ersatz für ein
-  // bestehendes Foto hoch. Die Foto-ID bleibt gleich (inkl. evtl. vorhandener
-  // Annotationen), nur die Bilddatei/URL wird ausgetauscht - gleiches Prinzip
-  // wie beim normalen Foto-Upload (neuer Storage-Pfad, foto_urls-Knoten
-  // zusätzlich befüllt, damit die URL nie verloren geht).
-  window._fotoErsetzenMitBlob = async function(fotoId, blobOrFile) {
-    const i = window._aktFotos.findIndex(f => f.id === fotoId);
-    if (i < 0) return;
-    const alterEintrag = window._aktFotos[i];
-    const anlageId = window._aktAnlageIdFuerUpload;
-    const notizId = window._aktNotizIdFuerUpload;
-    if (!anlageId || !notizId) { alert('Bitte zuerst eine Messnotiz öffnen/anlegen'); return; }
-    window._aktFotos[i] = { ...alterEintrag, url: null };
-    renderNotizFotoGrid();
-    try {
-      const sRef = window._storageRef(window._storage, `eiknotes/${anlageId}/${notizId}/${uuid()}.jpg`);
-      await window._uploadBytes(sRef, blobOrFile);
-      const url = await window._getDownloadURL(sRef);
-      const j = window._aktFotos.findIndex(f => f.id === fotoId);
-      if (j >= 0) window._aktFotos[j] = { ...alterEintrag, url };
-      try { await window._set(window._ref(window._db, `eiknotes/foto_urls/${fotoId}`), url); } catch (_) {}
-      renderNotizFotoGrid();
-      setStatus('✓ Foto ersetzt – bitte nicht vergessen: unten auf "Speichern" klicken', true);
-    } catch (e) {
-      console.error('Foto-Ersetzen fehlgeschlagen:', e);
-      const k = window._aktFotos.findIndex(f => f.id === fotoId);
-      if (k >= 0) window._aktFotos[k] = alterEintrag; // Original wiederherstellen
-      renderNotizFotoGrid();
-      alert('Foto-Ersetzen fehlgeschlagen: ' + e.message);
-    }
-  };
-
-  window.notizFotoAusZwischenablage = async function(fotoId) {
-    if (!navigator.clipboard || !navigator.clipboard.read) {
-      alert('Diese Funktion braucht einen aktuellen Browser (z.B. Chrome/Edge) und eine HTTPS-Verbindung.');
-      return;
-    }
-    try {
-      const items = await navigator.clipboard.read();
-      let blob = null;
-      for (const item of items) {
-        const bildTyp = item.types.find(t => t.startsWith('image/'));
-        if (bildTyp) { blob = await item.getType(bildTyp); break; }
-      }
-      if (!blob) {
-        alert('Kein Bild in der Zwischenablage gefunden. Bitte das bearbeitete Bild zuerst in Snagit kopieren (Strg+C).');
-        return;
-      }
-      await window._fotoErsetzenMitBlob(fotoId, blob);
-    } catch (e) {
-      console.error('Zwischenablage-Fehler:', e);
-      alert('Zwischenablage konnte nicht gelesen werden: ' + e.message);
-    }
-  };
-
-  window._fotoIdFuerErsetzen = null;
-  window.notizFotoDateiErsetzen = function(fotoId) {
-    window._fotoIdFuerErsetzen = fotoId;
-    document.getElementById('notizFotoErsetzenInput').click();
-  };
-  document.getElementById('notizFotoErsetzenInput').addEventListener('change', async (event) => {
-    const file = event.target.files[0];
-    event.target.value = '';
-    const fotoId = window._fotoIdFuerErsetzen;
-    window._fotoIdFuerErsetzen = null;
-    if (!file || !fotoId) return;
-    await window._fotoErsetzenMitBlob(fotoId, file);
-  });
 
   // ── Modal ────────────────────────────────────────────────────────────
   function openModal(id) { document.getElementById(id).classList.add('open'); }
