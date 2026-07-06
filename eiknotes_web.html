@@ -33,6 +33,15 @@
   .sidebar-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
   .sidebar-header h2 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
 
+  .sidebar-search { padding: 10px 16px; border-bottom: 1px solid var(--border); position: relative; }
+  .sidebar-search input { width: 100%; padding: 7px 28px 7px 10px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 12px; color: var(--text); background: var(--bg); }
+  .sidebar-search input:focus { outline: none; border-color: var(--blue); background: white; }
+  .sidebar-search .such-clear { position: absolute; right: 22px; top: 50%; transform: translateY(-50%); cursor: pointer;
+    color: var(--muted); font-size: 13px; display: none; }
+  .sidebar-search .such-clear.zeigen { display: block; }
+  .such-leer { padding: 20px 16px; text-align: center; color: var(--muted); font-size: 12px; }
+
   .anlage-item { padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
   .anlage-item:hover { background: var(--bg); }
   .anlage-item.active { background: #EEF4FD; border-left: 3px solid var(--blue); }
@@ -63,6 +72,14 @@
   .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
   .section-header h2 { font-size: 18px; font-weight: 700; }
   .section-header p { font-size: 12px; color: var(--muted); }
+  .notiz-search { display: flex; align-items: center; gap: 8px; background: white; border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; position: relative; }
+  .notiz-search input { flex: 1; border: none; font-size: 13px; color: var(--text); background: transparent; }
+  .notiz-search input:focus { outline: none; }
+  .notiz-search .such-clear { cursor: pointer; color: var(--muted); font-size: 14px; display: none; }
+  .notiz-search .such-clear.zeigen { display: block; }
+  .notiz-search-info { font-size: 11px; color: var(--muted); margin: -6px 0 12px 2px; }
+
   .dokumente-leiste { display: flex; align-items: center; gap: 10px; background: white; border: 1px solid var(--border);
     border-radius: 10px; padding: 8px 12px; margin-bottom: 16px; }
   .dokumente-chips { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; }
@@ -186,6 +203,10 @@
     <div class="sidebar-header">
       <h2>Anlagen</h2>
       <span id="anlagenCount" style="font-size:11px;color:var(--muted)">0</span>
+    </div>
+    <div class="sidebar-search">
+      <input type="text" id="anlagenSuche" placeholder="🔍 Anlagen durchsuchen…" oninput="onAnlagenSucheChange()">
+      <span class="such-clear" id="anlagenSucheClear" onclick="anlagenSucheLoeschen()">✕</span>
     </div>
     <div id="anlagenListe"></div>
   </div>
@@ -488,6 +509,80 @@
   window._aktBewertung = 'ok';
   window._aktFotos = [];       // Fotos der gerade im Modal bearbeiteten Messnotiz
   window._aktAnlageIdFuerUpload = null; // anlageId zum Zeitpunkt des Öffnens des Modals
+  window._anlagenSuche = '';   // Suchtext für die Anlagen-Liste (Sidebar)
+  window._notizSuche = '';     // Suchtext für die Messnotizen-Liste (Hauptbereich)
+
+  // Führt einen Render-Aufruf aus, ohne dass der Fokus/die Cursor-Position
+  // eines gerade getippten Such-Eingabefelds verloren geht (renderAnlagen()/
+  // renderNotizen() ersetzen bei jedem Aufruf das komplette innerHTML).
+  function renderMitFokusErhalt(renderFn) {
+    const aktiv = document.activeElement;
+    const aktivId = aktiv && aktiv.id;
+    const cursorPos = (aktiv && typeof aktiv.selectionStart === 'number') ? aktiv.selectionStart : null;
+    renderFn();
+    if (aktivId) {
+      const wieder = document.getElementById(aktivId);
+      if (wieder) {
+        wieder.focus();
+        if (cursorPos !== null && wieder.setSelectionRange) {
+          try { wieder.setSelectionRange(cursorPos, cursorPos); } catch (e) {}
+        }
+      }
+    }
+  }
+
+  // Sucht Anlagen anhand Name, Beschreibung und Zeitraum (z.B. "03.2026").
+  function anlagenFiltern(liste, suche) {
+    const q = (suche || '').trim().toLowerCase();
+    if (!q) return liste;
+    return liste.filter(a => {
+      const zeitraum = String(a.monat).padStart(2, '0') + '.' + a.jahr;
+      return (a.name || '').toLowerCase().includes(q)
+        || (a.beschreibung || '').toLowerCase().includes(q)
+        || zeitraum.includes(q);
+    });
+  }
+
+  // Sucht Messnotizen anhand Benennung, Bemerkung, Zyklenzahl, Bewertung und Datum.
+  function notizenFiltern(liste, suche) {
+    const q = (suche || '').trim().toLowerCase();
+    if (!q) return liste;
+    return liste.filter(n => {
+      const bewertungText = bewLabel(n.bewertung).toLowerCase();
+      return (n.benennung || '').toLowerCase().includes(q)
+        || (n.messpunkt || '').toLowerCase().includes(q)
+        || (n.bemerkung || '').toLowerCase().includes(q)
+        || String(n.zyklenzahl || n.messwert || '').toLowerCase().includes(q)
+        || bewertungText.includes(q)
+        || formatDatum(n.datum).toLowerCase().includes(q);
+    });
+  }
+
+  window.onAnlagenSucheChange = function() {
+    window._anlagenSuche = document.getElementById('anlagenSuche').value;
+    document.getElementById('anlagenSucheClear').classList.toggle('zeigen', !!window._anlagenSuche);
+    renderMitFokusErhalt(renderAnlagen);
+  };
+
+  window.anlagenSucheLoeschen = function() {
+    window._anlagenSuche = '';
+    document.getElementById('anlagenSuche').value = '';
+    document.getElementById('anlagenSucheClear').classList.remove('zeigen');
+    renderAnlagen();
+  };
+
+  window.onNotizSucheChange = function() {
+    const el = document.getElementById('notizSuche');
+    window._notizSuche = el ? el.value : '';
+    const clearBtn = document.getElementById('notizSucheClear');
+    if (clearBtn) clearBtn.classList.toggle('zeigen', !!window._notizSuche);
+    renderMitFokusErhalt(renderNotizen);
+  };
+
+  window.notizSucheLoeschen = function() {
+    window._notizSuche = '';
+    renderNotizen();
+  };
 
   // Jahr-Dropdown befüllen
   const jSelect = document.getElementById('anlageJahr');
@@ -541,9 +636,16 @@
 
   function renderAnlagen() {
     const el = document.getElementById('anlagenListe');
-    document.getElementById('anlagenCount').textContent = window._anlagen.length + ' Anlagen';
+    const gefiltert = anlagenFiltern(window._anlagen, window._anlagenSuche);
+    document.getElementById('anlagenCount').textContent = window._anlagenSuche
+      ? gefiltert.length + ' / ' + window._anlagen.length
+      : window._anlagen.length + ' Anlagen';
     el.innerHTML = '';
-    for (const a of window._anlagen) {
+    if (gefiltert.length === 0 && window._anlagen.length > 0) {
+      el.innerHTML = '<div class="such-leer">Keine Anlagen gefunden für „' + window._anlagenSuche + '"</div>';
+      return;
+    }
+    for (const a of gefiltert) {
       const nok = (a.notizen || []).filter(n => n.bewertung === 2).length;
       const warn = (a.notizen || []).filter(n => n.bewertung === 1).length;
       const div = document.createElement('div');
@@ -560,7 +662,7 @@
         ${a.beschreibung ? `<div style="font-size:11px;color:var(--text);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.beschreibung}</div>` : ''}
         <button class="anlage-item-del" title="Anlage löschen"
           style="position:absolute;top:12px;right:10px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:4px">🗑</button>`;
-      div.onclick = () => { window._aktAnlageId = a.id; renderAnlagen(); renderNotizen(); };
+      div.onclick = () => { window._aktAnlageId = a.id; window._notizSuche = ''; renderAnlagen(); renderNotizen(); };
       div.querySelector('.anlage-item-del').onclick = (ev) => {
         ev.stopPropagation();
         window.anlageLoeschen(a.id);
@@ -574,11 +676,12 @@
     const el = document.getElementById('mainContent');
     if (!a) { el.innerHTML = '<div class="main-empty"><p>Anlage auswählen</p></div>'; return; }
 
-    const notizen = a.notizen || [];
+    const notizenAlle = a.notizen || [];
+    const notizen = notizenFiltern(notizenAlle, window._notizSuche);
     // Lookup-Map, damit die Lightbox bei einem Klick per Foto-ID die
     // zugehörigen Annotationen (Positionen/Text/Farbe) wiederfindet.
     window._fotoMap = {};
-    for (const n of notizen) {
+    for (const n of notizenAlle) {
       for (const f of (n.fotos || [])) {
         if (f.url) window._fotoMap[f.id] = f;
       }
@@ -587,7 +690,7 @@
       <div class="section-header">
         <div>
           <h2>${a.name}</h2>
-          <p>${String(a.monat).padStart(2,'0')}.${a.jahr} · ${notizen.length} Notiz${notizen.length===1?'':'en'}</p>
+          <p>${String(a.monat).padStart(2,'0')}.${a.jahr} · ${notizenAlle.length} Notiz${notizenAlle.length===1?'':'en'}</p>
           ${a.beschreibung ? `<p style="margin-top:4px;color:var(--text);font-size:13px">${a.beschreibung}</p>` : ''}
         </div>
         <div style="display:flex;gap:8px">
@@ -595,6 +698,15 @@
           <button class="btn btn-blue" onclick="neueNotiz()">+ Neue Notiz</button>
         </div>
       </div>
+      ${notizenAlle.length > 0 ? `
+      <div class="notiz-search">
+        <span style="color:var(--muted)">🔍</span>
+        <input type="text" id="notizSuche" placeholder="Notizen durchsuchen (Benennung, Bemerkung, Bewertung, Datum…)"
+          value="${(window._notizSuche || '').replace(/"/g, '&quot;')}" oninput="onNotizSucheChange()">
+        <span class="such-clear${window._notizSuche ? ' zeigen' : ''}" id="notizSucheClear" onclick="notizSucheLoeschen()">✕</span>
+      </div>
+      ${window._notizSuche ? `<div class="notiz-search-info">${notizen.length} von ${notizenAlle.length} Notizen gefunden</div>` : ''}
+      ` : ''}
       <div class="dokumente-leiste">
         <span style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px">📎 Dokumente</span>
         <div class="dokumente-chips">
@@ -610,7 +722,9 @@
         <button class="btn-sm btn-sm-blue" style="flex-shrink:0" onclick="document.getElementById('dokumentInput').click()">+ Hinzufügen</button>
       </div>
       ${notizen.length === 0
-        ? '<div class="main-empty" style="height:200px"><p>Noch keine Messnotizen</p></div>'
+        ? (notizenAlle.length === 0
+            ? '<div class="main-empty" style="height:200px"><p>Noch keine Messnotizen</p></div>'
+            : `<div class="such-leer">Keine Notizen gefunden für „${window._notizSuche}"</div>`)
         : notizen.map(n => `
         <div class="notiz-card ${bewClass(n.bewertung)}">
           <div class="notiz-row-flex">
