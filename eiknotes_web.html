@@ -299,6 +299,8 @@
   <div class="lightbox-inner" onclick="event.stopPropagation()">
     <img id="lightboxImg" src="" alt="Foto" onclick="window.lightboxBildKlick(event)">
     <div class="lightbox-annotations" id="lightboxAnnotations"></div>
+    <button id="lightboxSchliessenBtn" title="Schließen" onclick="window.fotoSchliessen()"
+      style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.55);border:none;color:white;border-radius:8px;padding:8px 12px;font-size:15px;cursor:pointer;line-height:1;">✕</button>
     <button id="lightboxDownloadBtn" title="Foto herunterladen" onclick="window.lightboxFotoHerunterladen()"
       style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.55);border:none;color:white;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;">⬇ Download</button>
     <button id="lightboxBearbeitenBtn" title="Annotationen bearbeiten" onclick="window.lightboxBearbeitenUmschalten()"
@@ -715,7 +717,14 @@
     window._aktNotizId = id;
     window._aktNotizIdFuerUpload = id;
     window._aktAnlageIdFuerUpload = a.id;
-    window._aktFotos = (n.fotos || []).map(f => ({ ...f }));
+    // WICHTIG: bewusst KEINE Kopie der Fotos anlegen (kein .map(f=>({...f}))!
+    // Das hätte neue, separate Objekte erzeugt - Annotationen, die währenddessen
+    // über den anderen Weg (Foto-Vorschau in der Notiz-Karte, welche die
+    // Original-Objekte in window._fotoMap verwendet) hinzugefügt wurden,
+    // wären dann beim Speichern der Notiz durch die (veraltete) Kopie wieder
+    // überschrieben worden. Direkte Referenz = beide Wege bearbeiten garantiert
+    // dasselbe Objekt.
+    window._aktFotos = n.fotos || [];
     const bMap = [null, 'ok', 'warn', 'nok'];
     const bStr = n.bewertung === 0 ? 'ok' : n.bewertung === 1 ? 'warn' : 'nok';
     window._aktBewertung = bStr;
@@ -778,7 +787,7 @@
         ondragover="event.preventDefault(); this.classList.add('drag-over')"
         ondragleave="this.classList.remove('drag-over')"
         ondrop="window.fotoDropErsetzen(event, '${f.id}')">
-        ${f.url ? `<img src="${f.url}" onclick="window.open('${f.url}','_blank')">` : `<div class="foto-uploading">Hochladen…</div>`}
+        ${f.url ? `<img src="${f.url}" onclick="window.fotoAnzeigen('${f.id}')">` : `<div class="foto-uploading">Hochladen…</div>`}
         <button class="foto-del-btn" title="Foto löschen" onclick="window.notizFotoLoeschen('${f.id}')">✕</button>
         ${f.url ? `
         <div class="notiz-foto-toolbar">
@@ -807,6 +816,11 @@
         const url = await window._getDownloadURL(sRef);
         const i = window._aktFotos.findIndex(f => f.id === fotoId);
         if (i >= 0) window._aktFotos[i].url = url;
+        // Sofort in die Lightbox-Lookup-Map eintragen - sonst würde ein Klick
+        // auf das gerade erst hochgeladene Foto (vor dem nächsten renderNotizen())
+        // die Annotationen noch nicht finden.
+        if (!window._fotoMap) window._fotoMap = {};
+        window._fotoMap[fotoId] = window._aktFotos[i];
         // Zusätzlich robust in den separaten foto_urls-Knoten schreiben
         // (gleiches Prinzip wie in der App: URL geht so nie verloren, auch
         // wenn das Speichern der Notiz danach fehlschlägt/abgebrochen wird).
