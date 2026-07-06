@@ -772,13 +772,13 @@
       div.style.position = 'relative';
       div.innerHTML = `
         <div class="anlage-name" style="padding-right:50px">${a.name}</div>
+        ${a.trNummer ? `<div style="font-size:11px;color:var(--blue);font-weight:600;margin-top:3px">TR-Nr.: ${a.trNummer}</div>` : ''}
         <div class="anlage-meta">
           <span>${String(a.monat).padStart(2,'0')}.${a.jahr}</span>
           <span>${(a.notizen||[]).length} Notizen</span>
           ${nok > 0 ? `<span class="badge badge-red">${nok} NOK</span>` : ''}
           ${warn > 0 ? `<span class="badge badge-orange">${warn} Warn</span>` : ''}
         </div>
-        ${a.trNummer ? `<div style="font-size:11px;color:var(--blue);font-weight:600;margin-top:3px">TR-Nr.: ${a.trNummer}</div>` : ''}
         ${a.beschreibung ? `<div style="font-size:11px;color:var(--text);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.beschreibung}</div>` : ''}
         <button class="anlage-item-edit" title="Anlage bearbeiten"
           style="position:absolute;top:12px;right:34px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;padding:4px">✎</button>
@@ -816,7 +816,7 @@
       <div class="section-header">
         <div>
           <h2>${a.name}</h2>
-          <p>${String(a.monat).padStart(2,'0')}.${a.jahr} · ${notizenAlle.length} Notiz${notizenAlle.length===1?'':'en'}${a.trNummer ? ` · TR-Nr.: ${a.trNummer}` : ''}</p>
+          <p>${a.trNummer ? `TR-Nr.: ${a.trNummer} · ` : ''}${String(a.monat).padStart(2,'0')}.${a.jahr} · ${notizenAlle.length} Notiz${notizenAlle.length===1?'':'en'}</p>
           ${a.beschreibung ? `<p style="margin-top:4px;color:var(--text);font-size:13px">${a.beschreibung}</p>` : ''}
         </div>
         <div style="display:flex;gap:8px">
