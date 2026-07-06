@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EiKnotes — Feldprotokoll</title>
+<style>
+  :root {
+    --navy: #1A2E4A; --blue: #2D6DB5; --green: #27A060;
+    --orange: #E07020; --red: #D94040; --bg: #F0F4FA;
+    --border: #D0DCF0; --text: #1A2E4A; --muted: #6B7A99;
+    --surf: #fff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+  body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Header */
+  header { background: var(--navy); color: white; padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 20px; font-weight: 700; }
+  header p { font-size: 11px; color: rgba(255,255,255,0.6); }
+  .header-btns { margin-left: auto; display: flex; gap: 8px; }
+  .btn { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .btn-blue { background: var(--blue); color: white; }
+  .btn-green { background: var(--green); color: white; }
+  .btn-outline { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); }
+  .btn:hover { opacity: 0.85; }
+
+  /* Layout */
+  .container { display: flex; height: calc(100vh - 56px); }
+
+  /* Sidebar */
+  .sidebar { width: 320px; min-width: 280px; background: white; border-right: 1px solid var(--border); overflow-y: auto; }
+  .sidebar-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .sidebar-header h2 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+
+  .anlage-item { padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+  .anlage-item:hover { background: var(--bg); }
+  .anlage-item.active { background: #EEF4FD; border-left: 3px solid var(--blue); }
+  .anlage-name { font-weight: 700; font-size: 14px; color: var(--text); }
+  .anlage-meta { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; gap: 10px; align-items: center; }
+  .notiz-foto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-bottom: 6px; }
+  .notiz-foto-item { position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 1.2; background: var(--bg); border: 1px solid var(--border); }
+  .notiz-foto-item.drag-over { border: 2px dashed var(--blue); }
+  .notiz-foto-item img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
+  .notiz-foto-item .foto-del-btn { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.55); border: none; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; line-height: 1; cursor: pointer; z-index: 2; }
+  .notiz-foto-item .foto-uploading { position: absolute; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; }
+  .notiz-foto-toolbar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 1px;
+    background: rgba(0,0,0,0.55); opacity: 0; transition: opacity 0.15s; }
+  .notiz-foto-item:hover .notiz-foto-toolbar { opacity: 1; }
+  .notiz-foto-toolbar button { flex: 1; background: none; border: none; color: white; font-size: 13px;
+    padding: 4px 0; cursor: pointer; }
+  .notiz-foto-toolbar button:hover { background: rgba(255,255,255,0.2); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; color: white; }
+  .badge-red { background: var(--red); }
+  .badge-orange { background: var(--orange); }
+
+  /* Main content */
+  .main { flex: 1; overflow-y: auto; padding: 20px; }
+  .main-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); flex-direction: column; gap: 12px; }
+  .main-empty svg { opacity: 0.3; }
+
+  /* Notiz-Liste */
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .section-header h2 { font-size: 18px; font-weight: 700; }
+  .section-header p { font-size: 12px; color: var(--muted); }
+  .dokumente-leiste { display: flex; align-items: center; gap: 10px; background: white; border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 12px; margin-bottom: 16px; }
+  .dokumente-chips { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; }
+  .dok-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 14px; padding: 4px 8px; font-size: 11px; color: var(--text); cursor: pointer; max-width: 200px; }
+  .dok-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; }
+  .dok-chip-del { color: var(--muted); margin-left: 2px; }
+  .dok-chip-del:hover { color: var(--red); }
+  .dok-spinner { width: 9px; height: 9px; border: 1.5px solid var(--border); border-top-color: var(--blue);
+    border-radius: 50%; display: inline-block; animation: dokspin 0.8s linear infinite; }
+  @keyframes dokspin { to { transform: rotate(360deg); } }
+
+  .notiz-card { background: white; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 12px; overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .notiz-card.ok    { background: rgba(39,160,96,0.08); border-color: rgba(39,160,96,0.25); }
+  .notiz-card.warn  { background: rgba(224,112,32,0.08); border-color: rgba(224,112,32,0.25); }
+  .notiz-card.nok   { background: rgba(217,64,64,0.08); border-color: rgba(217,64,64,0.25); }
+  .notiz-row-flex { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding: 12px 16px; }
+  .notiz-info { display: flex; align-items: center; gap: 10px; }
+  .notiz-title { font-weight: 700; font-size: 14px; }
+  .notiz-date { font-size: 10px; color: var(--muted); }
+  .notiz-meta { flex: 1 1 160px; min-width: 120px; padding-left: 14px; border-left: 1px solid rgba(0,0,0,0.08); }
+  .notiz-row { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--text); }
+  .notiz-bem { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .notiz-fotos { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 14px; border-left: 1px solid rgba(0,0,0,0.08); }
+  .foto-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border);
+    cursor: pointer; transition: transform 0.15s; }
+  .foto-thumb:hover { transform: scale(1.05); }
+  .foto-thumb-wrap { position: relative; display: inline-block; }
+  .foto-annot-badge { position: absolute; top: -4px; right: -4px; background: var(--blue); color: white;
+    font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 8px; pointer-events: none; }
+  .lightbox-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200;
+    align-items: center; justify-content: center; cursor: zoom-out; }
+  .lightbox-bg.open { display: flex; }
+  .lightbox-inner { position: relative; display: inline-block; }
+  .lightbox-inner img { display: block; max-width: 92vw; max-height: 92vh; border-radius: 8px; }
+  .lightbox-annotations { position: absolute; inset: 0; pointer-events: none; }
+  .lightbox-toolbar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(20,20,20,0.95);
+    padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; z-index: 201; }
+  .lightbox-toolbar-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .lightbox-toolbar-label { color: #ccc; font-size: 12px; margin-right: 2px; }
+  .lb-form-btn { background: #333; color: white; border: 1px solid #555; border-radius: 8px;
+    padding: 6px 10px; font-size: 12px; cursor: pointer; }
+  .lb-form-btn.active { background: var(--blue); border-color: var(--blue); }
+  .lb-farbe-btn { width: 22px; height: 22px; border-radius: 50%; display: inline-block; cursor: pointer;
+    box-sizing: border-box; }
+  .lb-farbe-btn.active { box-shadow: 0 0 0 2px white; }
+  #lightboxText { background: #222; color: white; border: 1px solid #555; border-radius: 6px;
+    padding: 6px 8px; font-size: 12px; }
+  .lb-handle { position: absolute; width: 22px; height: 22px; border-radius: 50%; box-sizing: border-box;
+    cursor: grab; transform: translate(-50%,-50%); pointer-events: auto; border: 2px solid black; }
+  .lb-handle.aktiv { border-color: white; box-shadow: 0 0 6px 2px rgba(255,255,255,0.9); }
+  .lb-del-badge { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: var(--red);
+    color: white; font-size: 11px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; pointer-events: auto; transform: translate(4px,-26px); }
+  .annot-marker { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column;
+    align-items: flex-start; gap: 2px; }
+  .annot-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid black; box-sizing: border-box; }
+  .annot-label { font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+  .notiz-actions { display: flex; gap: 8px; padding-left: 14px; border-left: 1px solid rgba(0,0,0,0.08); margin-left: auto; }
+  .notiz-bew-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .btn-sm { padding: 5px 12px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; }
+  .btn-sm-blue { background: var(--blue); color: white; }
+  .btn-sm-red { background: transparent; color: var(--red); border: 1px solid var(--red); }
+
+  /* Modal */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: white; border-radius: 16px; width: 540px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+  .modal-header { padding: 16px 20px; background: var(--blue); color: white; border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center; }
+  .modal-header h3 { font-size: 16px; font-weight: 700; }
+  .modal-close { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
+  .modal-body { padding: 20px; }
+  .modal-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+  .field-group { margin-bottom: 14px; }
+  .field-group label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .field-group input, .field-group textarea, .field-group select {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13px; color: var(--text); outline: none; font-family: inherit; }
+  .field-group input:focus, .field-group textarea:focus { border-color: var(--blue); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field-row-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; }
+
+  .bewertung-btns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .bew-btn { padding: 10px; border-radius: 8px; border: 2px solid var(--border); cursor: pointer; text-align: center; transition: all 0.15s; background: white; }
+  .bew-btn.active-ok    { border-color: var(--green); background: rgba(39,160,96,0.08); }
+  .bew-btn.active-warn  { border-color: var(--orange); background: rgba(224,112,32,0.08); }
+  .bew-btn.active-nok   { border-color: var(--red); background: rgba(217,64,64,0.08); }
+  .bew-icon { font-size: 20px; }
+  .bew-label { font-size: 11px; font-weight: 700; margin-top: 4px; }
+
+  .sec-label { font-size: 10px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: 1px;
+    border-left: 3px solid var(--blue); padding-left: 8px; margin-bottom: 10px; margin-top: 16px; }
+
+  /* Status */
+  .status-bar { padding: 8px 16px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); background: var(--bg); }
+  .status-ok { color: var(--green); }
+  .status-err { color: var(--red); }
+
+  /* Loading */
+  .loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: var(--muted); gap: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="24" height="24" fill="white" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+  <div><h1>EiKnotes</h1><p>Feldprotokoll — PC Ansicht</p></div>
+  <div class="header-btns">
+    <button class="btn btn-outline" onclick="syncFirebase()">🔄 Synchronisieren</button>
+    <button class="btn btn-green" onclick="neueAnlage()">+ Neuer Eintrag</button>
+  </div>
+</header>
+
+<div id="statusBar" class="status-bar">Bereit</div>
+
+<div class="container">
+  <!-- Sidebar: Anlagen -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>Anlagen</h2>
+      <span id="anlagenCount" style="font-size:11px;color:var(--muted)">0</span>
+    </div>
+    <div id="anlagenListe"></div>
+  </div>
+
+  <!-- Main: Messnotizen -->
+  <div class="main" id="mainContent">
+    <div class="main-empty">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+      </svg>
+      <p>Anlage auswählen</p>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Neues Messprojekt -->
+<div class="modal-bg" id="modalAnlage">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalAnlageTitel">Neuer Eintrag</h3>
+      <button class="modal-close" onclick="closeModal('modalAnlage')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="sec-label">Bezeichnung</div>
+      <div class="field-group">
+        <label>Anlagenname</label>
+        <input id="anlageName" type="text" placeholder="z.B. Seilbahn Kronplatz">
+      </div>
+      <div class="sec-label">Beschreibung</div>
+      <div class="field-group">
+        <textarea id="anlageBeschreibung" rows="3" placeholder="Kurz worum es hier geht…"></textarea>
+      </div>
+      <div class="sec-label">Zeitraum</div>
+      <div class="field-row">
+        <div class="field-group">
+          <label>Monat</label>
+          <select id="anlageMonat">
+            <option value="1">Januar</option><option value="2">Februar</option>
+            <option value="3">März</option><option value="4">April</option>
+            <option value="5">Mai</option><option value="6">Juni</option>
+            <option value="7">Juli</option><option value="8">August</option>
+            <option value="9">September</option><option value="10">Oktober</option>
+            <option value="11">November</option><option value="12">Dezember</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Jahr</label>
+          <select id="anlageJahr"></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" style="color:var(--text);background:var(--bg);border:1px solid var(--border)" onclick="closeModal('modalAnlage')">Abbrechen</button>
+      <button class="btn btn-blue" onclick="anlageSpeiichern()">Erstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Neue/Bearbeiten Messnotiz -->
+<div class="modal-bg" id="modalNotiz">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalNotizTitel">Neue Messnotiz</h3>
+      <button class="modal-close" onclick="closeModal('modalNotiz')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="sec-label">Benennung</div>
+      <div class="field-group">
+        <label>Benennung</label>
+        <input id="notizBenennung" type="text" placeholder="z.B. Antriebslager links">
+      </div>
+      <div class="field-group">
+        <label>Zyklenzahl</label>
+        <input id="notizZyklenzahl" type="text" placeholder="0">
+      </div>
+      <div class="sec-label">Bewertung</div>
+      <div class="bewertung-btns">
+        <div class="bew-btn active-ok" id="bew-ok" onclick="setBewertung('ok')">
+          <div class="bew-icon">✅</div>
+          <div class="bew-label" style="color:var(--green)">OK</div>
+        </div>
+        <div class="bew-btn" id="bew-warn" onclick="setBewertung('warn')">
+          <div class="bew-icon">⚠️</div>
+          <div class="bew-label" style="color:var(--orange)">Warnung</div>
+        </div>
+        <div class="bew-btn" id="bew-nok" onclick="setBewertung('nok')">
+          <div class="bew-icon">❌</div>
+          <div class="bew-label" style="color:var(--red)">Nicht OK</div>
+        </div>
+      </div>
+      <div class="sec-label">Bemerkung</div>
+      <div class="field-group">
+        <textarea id="notizBemerkung" rows="4" placeholder="Notizen, Beobachtungen…"></textarea>
+      </div>
+      <div class="sec-label">Fotos</div>
+      <input type="file" id="notizFotoInput" accept="image/*" multiple style="display:none">
+      <input type="file" id="notizFotoErsetzenInput" accept="image/*" style="display:none">
+      <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:10px"
+        onclick="document.getElementById('notizFotoInput').click()">📷 Foto hinzufügen</button>
+      <div id="notizFotoGrid" class="notiz-foto-grid"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" style="color:var(--text);background:var(--bg);border:1px solid var(--border)" onclick="closeModal('modalNotiz')">Abbrechen</button>
+      <button class="btn btn-blue" onclick="notizSpeichern()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Foto-Vollansicht -->
+<div class="lightbox-bg" id="lightbox" onclick="window.fotoSchliessen()">
+  <div class="lightbox-inner" onclick="event.stopPropagation()">
+    <img id="lightboxImg" src="" alt="Foto" onclick="window.lightboxBildKlick(event)">
+    <div class="lightbox-annotations" id="lightboxAnnotations"></div>
+    <button id="lightboxSchliessenBtn" title="Schließen" onclick="window.fotoSchliessen()"
+      style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.55);border:none;color:white;border-radius:8px;padding:8px 12px;font-size:15px;cursor:pointer;line-height:1;">✕</button>
+    <button id="lightboxDownloadBtn" title="Foto herunterladen" onclick="window.lightboxFotoHerunterladen()"
+      style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.55);border:none;color:white;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;">⬇ Download</button>
+    <button id="lightboxBearbeitenBtn" title="Annotationen bearbeiten" onclick="window.lightboxBearbeitenUmschalten()"
+      style="position:absolute;top:8px;right:110px;background:rgba(0,0,0,0.55);border:none;color:white;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;">✏️ Bearbeiten</button>
+  </div>
+  <div id="lightboxToolbar" class="lightbox-toolbar" style="display:none" onclick="event.stopPropagation()">
+    <div class="lightbox-toolbar-row">
+      <span class="lightbox-toolbar-label">Form:</span>
+      <button class="lb-form-btn active" data-typ="0" onclick="window.lightboxTypWaehlen(0, event)">📍 Punkt</button>
+      <button class="lb-form-btn" data-typ="1" onclick="window.lightboxTypWaehlen(1, event)">↗ Pfeil</button>
+      <button class="lb-form-btn" data-typ="2" onclick="window.lightboxTypWaehlen(2, event)">○ Kreis</button>
+      <button class="lb-form-btn" data-typ="3" onclick="window.lightboxTypWaehlen(3, event)">□ Rechteck</button>
+    </div>
+    <div class="lightbox-toolbar-row">
+      <span class="lightbox-toolbar-label">Farbe:</span>
+      <span class="lb-farbe-btn active" style="background:#e53935" data-farbe="4294901760" onclick="window.lightboxFarbeWaehlen(4294901760, event)"></span>
+      <span class="lb-farbe-btn" style="background:#fdd835" data-farbe="4294967040" onclick="window.lightboxFarbeWaehlen(4294967040, event)"></span>
+      <span class="lb-farbe-btn" style="background:#43a047" data-farbe="4278255360" onclick="window.lightboxFarbeWaehlen(4278255360, event)"></span>
+      <span class="lb-farbe-btn" style="background:#1e88e5" data-farbe="4278190335" onclick="window.lightboxFarbeWaehlen(4278190335, event)"></span>
+      <span class="lb-farbe-btn" style="background:#ffffff;border:1px solid #999" data-farbe="4294967295" onclick="window.lightboxFarbeWaehlen(4294967295, event)"></span>
+      <input id="lightboxText" type="text" placeholder="Text (nur bei Punkt nötig)…" style="flex:1;margin-left:10px">
+    </div>
+    <div class="lightbox-toolbar-row" style="justify-content:flex-end">
+      <span style="font-size:11px;color:#ccc;margin-right:auto">Zum Platzieren aufs Foto klicken · Ziehpunkte zum Verschieben/Anpassen</span>
+      <button class="btn-sm btn-sm-blue" onclick="window.lightboxSpeichern()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getDatabase, ref, set, get, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+  import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+
+  const firebaseConfig = {
+    apiKey: 'AIzaSyC6o4DPT_ux5yTtM8Zum3odZIKAPKP4avE',
+    authDomain: 'eikcalc.firebaseapp.com',
+    databaseURL: 'https://eikcalc-default-rtdb.europe-west1.firebasedatabase.app',
+    projectId: 'eikcalc',
+    storageBucket: 'eikcalc.firebasestorage.app',
+    messagingSenderId: '769615464859',
+    appId: '1:769615464859:android:a3b59f54a1d5cf99d4793e'
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const storage = getStorage(app, 'gs://eikcalc.firebasestorage.app');
+  const dbRef = ref(db, 'eiknotes/anlagen');
+  const fotoUrlsRef = ref(db, 'eiknotes/foto_urls');
+
+  // Eindeutige Sortierung: neuestes Jahr/Monat zuerst, bei Gleichstand
+  // (gleicher Monat/Jahr) die zeitlich zuletzt erstellte Anlage zuerst.
+  // Alte Datensätze ohne 'erstellt' fallen auf einen festen alten Zeitpunkt
+  // zurück, damit sie nicht fälschlich vor neu erstellten landen.
+  function anlagenVergleich(a, b) {
+    if (a.jahr !== b.jahr) return b.jahr - a.jahr;
+    if (a.monat !== b.monat) return b.monat - a.monat;
+    const ae = a.erstellt ? new Date(a.erstellt).getTime() : 0;
+    const be = b.erstellt ? new Date(b.erstellt).getTime() : 0;
+    return be - ae;
+  }
+
+  // Globaler State
+  window._db = db;
+  window._dbRef = dbRef;
+  window._set = set;
+  window._get = get;
+  window._ref = ref;
+  window._storage = storage;
+  window._storageRef = storageRef;
+  window._uploadBytes = uploadBytes;
+  window._getDownloadURL = getDownloadURL;
+  window._deleteObject = deleteObject;
+  window._fotoUrls = {};
+
+  // Patcht fehlende/veraltete Foto-URLs (fotoId -> url) direkt in die
+  // geladenen Anlagen. Grund: die App schreibt frisch hochgeladene URLs
+  // sofort und unabhängig vom Anlagen-Baum in diesen separaten Knoten,
+  // damit ein Foto nie mehr "verloren" geht, egal wann/ob der komplette
+  // Anlagen-Baum synchronisiert wurde.
+  window._patchFotoUrls = function() {
+    const urls = window._fotoUrls || {};
+    for (const a of (window._anlagen || [])) {
+      for (const n of (a.notizen || [])) {
+        for (const f of (n.fotos || [])) {
+          if (urls[f.id] && f.url !== urls[f.id]) f.url = urls[f.id];
+        }
+      }
+    }
+  };
+
+  // Live-Sync Anlagen
+  onValue(dbRef, (snap) => {
+    if (snap.exists()) {
+      const data = snap.val();
+      window._anlagen = Object.values(data).sort(anlagenVergleich);
+    } else {
+      window._anlagen = [];
+    }
+    window._patchFotoUrls();
+    renderAnlagen();
+    if (window._aktAnlageId) renderNotizen();
+    setStatus('✓ Verbunden mit Firebase', true);
+  }, (err) => {
+    setStatus('Firebase Fehler: ' + err.message, false);
+  });
+
+  // Live-Sync Foto-URLs (unabhängig vom Anlagen-Sync)
+  onValue(fotoUrlsRef, (snap) => {
+    window._fotoUrls = snap.exists() ? snap.val() : {};
+    window._patchFotoUrls();
+    renderAnlagen();
+    if (window._aktAnlageId) renderNotizen();
+  }, (err) => {
+    console.error('foto_urls Fehler:', err);
+  });
+
+  // Live-Updates auch in der Detailansicht anzeigen
+  window._renderAfterSync = function() {
+    renderAnlagen();
+    if (window._aktAnlageId) renderNotizen();
+  };
+
+  window.saveToFirebase = async function() {
+    console.log('saveToFirebase called, anlagen:', window._anlagen.length);
+    console.log('_set:', typeof window._set, '_dbRef:', typeof window._dbRef);
+    const data = {};
+    for (const a of window._anlagen) data[a.id] = a;
+    console.log('data to write:', JSON.stringify(data).substring(0, 200));
+    try {
+      await window._set(window._dbRef, data);
+      console.log('Firebase write SUCCESS');
+      setStatus('✓ Gespeichert und synchronisiert', true);
+      renderAnlagen();
+      if (window._aktAnlageId) renderNotizen();
+    } catch(e) {
+      console.error('Firebase write FAILED:', e);
+      setStatus('Fehler beim Speichern: ' + e.message, false);
+    }
+  };
+
+  // Hinweis: es gab hier vorher eine zweite, doppelte Definition von
+  // window.syncFirebase weiter unten, die diese hier komplett überschrieben
+  // hat (toter Code, nie ausgeführt). Entfernt - das ist jetzt die einzige,
+  // aktive Version. Sie liest zusätzlich foto_urls, damit frisch von der
+  // App hochgeladene Fotos garantiert sichtbar werden.
+  window.syncFirebase = async function() {
+    setStatus('Synchronisiere...');
+    try {
+      const snap = await window._get(window._dbRef);
+      if (snap.exists()) {
+        window._anlagen = Object.values(snap.val()).sort(anlagenVergleich);
+      } else {
+        window._anlagen = [];
+      }
+      try {
+        const urlSnap = await window._get(window._ref(window._db, 'eiknotes/foto_urls'));
+        window._fotoUrls = urlSnap.exists() ? urlSnap.val() : {};
+      } catch (e) {
+        console.error('foto_urls Sync-Fehler:', e);
+      }
+      window._patchFotoUrls();
+      renderAnlagen();
+      if (window._aktAnlageId) renderNotizen();
+      setStatus(window._anlagen.length ? ('✓ Synchronisiert: ' + window._anlagen.length + ' Anlagen') : 'Keine Daten in Firebase', window._anlagen.length > 0);
+    } catch(e) {
+      setStatus('Sync Fehler: ' + e.message, false);
+      console.error('Sync error:', e);
+    }
+  };
+
+  // Hilfsfunktion: aktAnlage aus _anlagen neu lesen
+  window.getAktAnlage = function() {
+    if (!window._aktAnlageId) return null;
+    return window._anlagen.find(a => a.id === window._aktAnlageId) || null;
+  };
+</script>
+
+<script>
+  // State
+  window._anlagen = [];
+  window._aktAnlageId = null;
+  window._aktNotizId = null;
+  window._aktBewertung = 'ok';
+  window._aktFotos = [];       // Fotos der gerade im Modal bearbeiteten Messnotiz
+  window._aktAnlageIdFuerUpload = null; // anlageId zum Zeitpunkt des Öffnens des Modals
+
+  // Jahr-Dropdown befüllen
+  const jSelect = document.getElementById('anlageJahr');
+  const now = new Date();
+  for (let y = now.getFullYear() - 1; y <= now.getFullYear() + 2; y++) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y;
+    if (y === now.getFullYear()) o.selected = true;
+    jSelect.appendChild(o);
+  }
+  document.getElementById('anlageMonat').value = now.getMonth() + 1;
+  document.getElementById('notizFotoInput').addEventListener('change', handleNotizFotoUpload);
+  document.getElementById('notizFotoErsetzenInput').addEventListener('change', handleNotizFotoErsetzen);
+
+  function setStatus(msg, ok = null) {
+    const el = document.getElementById('statusBar');
+    el.textContent = msg;
+    el.className = 'status-bar' + (ok === true ? ' status-ok' : ok === false ? ' status-err' : '');
+  }
+
+  function uuid() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  function formatDatum(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('de-AT', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+  }
+
+  function bewIcon(b) {
+    return b === 0 ? '✅' : b === 1 ? '⚠️' : '❌';
+  }
+  function bewLabel(b) {
+    return b === 0 ? 'OK' : b === 1 ? 'Warnung' : 'Nicht OK';
+  }
+  function bewClass(b) {
+    return b === 0 ? 'ok' : b === 1 ? 'warn' : 'nok';
+  }
+
+  function dokIcon(name) {
+    const ext = (name || '').toLowerCase().split('.').pop();
+    if (ext === 'pdf') return '📕';
+    if (['doc','docx'].includes(ext)) return '📄';
+    if (['xls','xlsx','csv'].includes(ext)) return '📊';
+    if (['ppt','pptx'].includes(ext)) return '📽️';
+    return '📁';
+  }
+
+  function renderAnlagen() {
+    const el = document.getElementById('anlagenListe');
+    document.getElementById('anlagenCount').textContent = window._anlagen.length + ' Anlagen';
+    el.innerHTML = '';
+    for (const a of window._anlagen) {
+      const nok = (a.notizen || []).filter(n => n.bewertung === 2).length;
+      const warn = (a.notizen || []).filter(n => n.bewertung === 1).length;
+      const div = document.createElement('div');
+      div.className = 'anlage-item' + (window._aktAnlageId === a.id ? ' active' : '');
+      div.style.position = 'relative';
+      div.innerHTML = `
+        <div class="anlage-name" style="padding-right:26px">${a.name}</div>
+        <div class="anlage-meta">
+          <span>${String(a.monat).padStart(2,'0')}.${a.jahr}</span>
+          <span>${(a.notizen||[]).length} Notizen</span>
+          ${nok > 0 ? `<span class="badge badge-red">${nok} NOK</span>` : ''}
+          ${warn > 0 ? `<span class="badge badge-orange">${warn} Warn</span>` : ''}
+        </div>
+        ${a.beschreibung ? `<div style="font-size:11px;color:var(--text);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.beschreibung}</div>` : ''}
+        <button class="anlage-item-del" title="Anlage löschen"
+          style="position:absolute;top:12px;right:10px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:4px">🗑</button>`;
+      div.onclick = () => { window._aktAnlageId = a.id; renderAnlagen(); renderNotizen(); };
+      div.querySelector('.anlage-item-del').onclick = (ev) => {
+        ev.stopPropagation();
+        window.anlageLoeschen(a.id);
+      };
+      el.appendChild(div);
+    }
+  }
+
+  function renderNotizen() {
+    const a = window.getAktAnlage();
+    const el = document.getElementById('mainContent');
+    if (!a) { el.innerHTML = '<div class="main-empty"><p>Anlage auswählen</p></div>'; return; }
+
+    const notizen = a.notizen || [];
+    // Lookup-Map, damit die Lightbox bei einem Klick per Foto-ID die
+    // zugehörigen Annotationen (Positionen/Text/Farbe) wiederfindet.
+    window._fotoMap = {};
+    for (const n of notizen) {
+      for (const f of (n.fotos || [])) {
+        if (f.url) window._fotoMap[f.id] = f;
+      }
+    }
+    el.innerHTML = `
+      <div class="section-header">
+        <div>
+          <h2>${a.name}</h2>
+          <p>${String(a.monat).padStart(2,'0')}.${a.jahr} · ${notizen.length} Notiz${notizen.length===1?'':'en'}</p>
+          ${a.beschreibung ? `<p style="margin-top:4px;color:var(--text);font-size:13px">${a.beschreibung}</p>` : ''}
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline" style="color:var(--red);border-color:var(--red);background:white" onclick="window.anlageLoeschen('${a.id}')">Anlage löschen</button>
+          <button class="btn btn-blue" onclick="neueNotiz()">+ Neue Notiz</button>
+        </div>
+      </div>
+      <div class="dokumente-leiste">
+        <span style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px">📎 Dokumente</span>
+        <div class="dokumente-chips">
+          ${(a.dokumente || []).length === 0 ? '<span style="font-size:11px;color:var(--muted)">Keine Dokumente</span>' :
+            (a.dokumente || []).map(d => `
+              <span class="dok-chip" title="${d.name}" onclick="window.dokumentOeffnen('${d.id}')">
+                ${dokIcon(d.name)} <span class="dok-chip-name">${d.name}</span>
+                ${!d.url ? '<span class="dok-spinner"></span>' : ''}
+                <span class="dok-chip-del" onclick="event.stopPropagation(); window.dokumentLoeschen('${d.id}')">✕</span>
+              </span>`).join('')}
+        </div>
+        <input type="file" id="dokumentInput" style="display:none" onchange="window.handleDokumentUpload(event)">
+        <button class="btn-sm btn-sm-blue" style="flex-shrink:0" onclick="document.getElementById('dokumentInput').click()">+ Hinzufügen</button>
+      </div>
+      ${notizen.length === 0
+        ? '<div class="main-empty" style="height:200px"><p>Noch keine Messnotizen</p></div>'
+        : notizen.map(n => `
+        <div class="notiz-card ${bewClass(n.bewertung)}">
+          <div class="notiz-row-flex">
+            <div class="notiz-info">
+              <span>${bewIcon(n.bewertung)}</span>
+              <div>
+                <div class="notiz-title">${n.benennung || n.messpunkt || 'Ohne Benennung'}</div>
+                <div class="notiz-date">${formatDatum(n.datum)}</div>
+              </div>
+            </div>
+            ${((n.zyklenzahl || n.messwert) || n.bemerkung) ? `
+            <div class="notiz-meta">
+              ${(n.zyklenzahl || n.messwert) ? `<div class="notiz-row">🔁 Zyklenzahl: ${n.zyklenzahl || n.messwert}</div>` : ''}
+              ${n.bemerkung ? `<div class="notiz-bem">${n.bemerkung}</div>` : ''}
+            </div>` : ''}
+            ${(n.fotos||[]).filter(f => f.url).length > 0 ? `
+            <div class="notiz-fotos">
+              ${(n.fotos||[]).filter(f => f.url).map(f => `
+                <div class="foto-thumb-wrap">
+                  <img src="${f.url}" class="foto-thumb" onclick="window.fotoAnzeigen('${f.id}')" loading="lazy">
+                  ${(f.annotationen||[]).length > 0 ? `<span class="foto-annot-badge">${f.annotationen.length}</span>` : ''}
+                </div>`).join('')}
+            </div>` : ''}
+            <div class="notiz-actions">
+              <button class="btn-sm btn-sm-blue" onclick="window.notizBearbeiten('${n.id}')">✏ Bearbeiten</button>
+              <button class="btn-sm btn-sm-red" onclick="window.notizLoeschen('${n.id}')">Löschen</button>
+            </div>
+            <span class="notiz-bew-label">${bewLabel(n.bewertung)}</span>
+          </div>
+        </div>`).join('')}`;
+  }
+
+  // ── Anlage ────────────────────────────────────────────────────────────
+  function neueAnlage() {
+    document.getElementById('modalAnlageTitel').textContent = 'Neuer Eintrag';
+    document.getElementById('anlageName').value = '';
+    document.getElementById('anlageBeschreibung').value = '';
+    document.getElementById('anlageMonat').value = new Date().getMonth() + 1;
+    document.getElementById('anlageJahr').value = new Date().getFullYear();
+    openModal('modalAnlage');
+    setTimeout(() => document.getElementById('anlageName').focus(), 100);
+  }
+
+  window.anlageSpeiichern = async function() {
+    const name = document.getElementById('anlageName').value.trim();
+    if (!name) return;
+    const neu = {
+      id: uuid(), name,
+      beschreibung: document.getElementById('anlageBeschreibung').value.trim(),
+      monat: parseInt(document.getElementById('anlageMonat').value),
+      jahr: parseInt(document.getElementById('anlageJahr').value),
+      erstellt: new Date().toISOString(),
+      notizen: [],
+      dokumente: []
+    };
+    window._anlagen.unshift(neu);
+    closeModal('modalAnlage');
+    await window.saveToFirebase();
+    setStatus('✓ Anlage erstellt', true);
+    renderAnlagen();
+  };
+
+  window.anlageLoeschen = async function(id) {
+    if (!confirm('Anlage und alle Messnotizen löschen?')) return;
+    window._anlagen = window._anlagen.filter(a => a.id !== id);
+    if (window._aktAnlageId === id) window._aktAnlageId = null;
+    await window.saveToFirebase();
+    renderAnlagen();
+    renderNotizen();
+  };
+
+  // ── Notiz ────────────────────────────────────────────────────────────
+  function setBewertung(b) {
+    window._aktBewertung = b;
+    document.getElementById('bew-ok').className = 'bew-btn' + (b==='ok' ? ' active-ok' : '');
+    document.getElementById('bew-warn').className = 'bew-btn' + (b==='warn' ? ' active-warn' : '');
+    document.getElementById('bew-nok').className = 'bew-btn' + (b==='nok' ? ' active-nok' : '');
+  }
+
+  function neueNotiz() {
+    if (!window.getAktAnlage()) { alert('Bitte zuerst eine Anlage auswählen'); return; }
+    window._aktNotizId = null;
+    window._aktBewertung = 'ok';
+    window._aktFotos = [];
+    window._aktAnlageIdFuerUpload = window._aktAnlageId;
+    // Feste, temporäre Notiz-ID schon jetzt vergeben, damit Fotos vor dem
+    // ersten "Speichern" schon zu einem stabilen Storage-Pfad hochgeladen
+    // werden können.
+    window._aktNotizIdFuerUpload = uuid();
+    document.getElementById('modalNotizTitel').textContent = 'Neue Notiz';
+    document.getElementById('notizBenennung').value = '';
+    document.getElementById('notizZyklenzahl').value = '';
+    document.getElementById('notizBemerkung').value = '';
+    setBewertung('ok');
+    renderNotizFotoGrid();
+    openModal('modalNotiz');
+    setTimeout(() => document.getElementById('notizBenennung').focus(), 100);
+  }
+
+  window.notizBearbeiten = function(id) {
+    const a = window.getAktAnlage();
+    const n = a.notizen.find(x => x.id === id);
+    if (!n) return;
+    window._aktNotizId = id;
+    window._aktNotizIdFuerUpload = id;
+    window._aktAnlageIdFuerUpload = a.id;
+    window._aktFotos = (n.fotos || []).map(f => ({ ...f }));
+    const bMap = [null, 'ok', 'warn', 'nok'];
+    const bStr = n.bewertung === 0 ? 'ok' : n.bewertung === 1 ? 'warn' : 'nok';
+    window._aktBewertung = bStr;
+    document.getElementById('modalNotizTitel').textContent = 'Notiz bearbeiten';
+    document.getElementById('notizBenennung').value = n.benennung || n.messpunkt || '';
+    document.getElementById('notizZyklenzahl').value = n.zyklenzahl || n.messwert || '';
+    document.getElementById('notizBemerkung').value = n.bemerkung || '';
+    setBewertung(bStr);
+    renderNotizFotoGrid();
+    openModal('modalNotiz');
+  };
+
+  window.notizSpeichern = async function() {
+    const a = window.getAktAnlage();
+    if (!a) { alert('Keine Anlage ausgewählt'); return; }
+    const bewMap = { ok: 0, warn: 1, nok: 2 };
+    const bew = bewMap[window._aktBewertung] ?? 0;
+    // 'fotos' kommt jetzt bewusst aus window._aktFotos: das ist der einzige
+    // Ort, an dem Fotos für diese Notiz verwaltet werden (befüllt beim Öffnen
+    // des Modals mit den bestehenden Fotos, ergänzt/reduziert durch Hinzufügen
+    // bzw. Löschen im Modal). So gehen bestehende (z.B. vom Handy hochgeladene)
+    // Fotos beim Speichern am PC nicht verloren.
+    const data = {
+      benennung: document.getElementById('notizBenennung').value.trim(),
+      zyklenzahl: document.getElementById('notizZyklenzahl').value.trim(),
+      bemerkung: document.getElementById('notizBemerkung').value.trim(),
+      bewertung: bew,
+      fotos: window._aktFotos
+    };
+    if (!a.notizen || !Array.isArray(a.notizen)) a.notizen = [];
+    if (window._aktNotizId) {
+      const i = a.notizen.findIndex(n => n.id === window._aktNotizId);
+      if (i >= 0) { Object.assign(a.notizen[i], data); }
+      else { a.notizen.unshift({ id: window._aktNotizIdFuerUpload || uuid(), datum: new Date().toISOString(), ...data }); }
+    } else {
+      a.notizen.unshift({ id: window._aktNotizIdFuerUpload || uuid(), datum: new Date().toISOString(), ...data });
+    }
+    // Anlage in _anlagen aktualisieren
+    const ai = window._anlagen.findIndex(x => x.id === a.id);
+    if (ai >= 0) window._anlagen[ai] = a;
+    closeModal('modalNotiz');
+    await window.saveToFirebase();
+    setStatus('✓ Gespeichert', true);
+    renderNotizen();
+  };
+
+  window.notizLoeschen = async function(id) {
+    if (!confirm('Messnotiz löschen?')) return;
+    const a = window.getAktAnlage(); if (!a) return;
+    a.notizen = a.notizen.filter(n => n.id !== id);
+    await window.saveToFirebase();
+    renderNotizen();
+  };
+
+  // ── Fotos im Messnotiz-Modal ─────────────────────────────────────────
+  function renderNotizFotoGrid() {
+    const el = document.getElementById('notizFotoGrid');
+    el.innerHTML = window._aktFotos.map(f => `
+      <div class="notiz-foto-item" data-foto-id="${f.id}"
+        ondragover="event.preventDefault(); this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="window.fotoDropErsetzen(event, '${f.id}')">
+        ${f.url ? `<img src="${f.url}" onclick="window.fotoAnzeigen('${f.id}')">` : `<div class="foto-uploading">Hochladen…</div>`}
+        <button class="foto-del-btn" title="Foto löschen" onclick="window.notizFotoLoeschen('${f.id}')">✕</button>
+        ${f.url ? `
+        <div class="notiz-foto-toolbar">
+          <button title="Original herunterladen" onclick="window.fotoHerunterladen('${f.id}')">⬇ Download</button>
+          <button title="Ersetzen: versucht zuerst die Zwischenablage, sonst Datei-Dialog. Auch per Drag &amp; Drop direkt aufs Foto möglich." onclick="window.fotoErsetzenAuto('${f.id}')">🔄 Ersetzen</button>
+        </div>` : ''}
+      </div>`).join('');
+  }
+  window.renderNotizFotoGrid = renderNotizFotoGrid;
+
+  async function handleNotizFotoUpload(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = ''; // erlaubt erneutes Auswählen derselben Datei
+    if (files.length === 0) return;
+    const anlageId = window._aktAnlageIdFuerUpload;
+    const notizId = window._aktNotizIdFuerUpload;
+    if (!anlageId || !notizId) { alert('Bitte zuerst eine Messnotiz öffnen/anlegen'); return; }
+    for (const file of files) {
+      const fotoId = uuid();
+      // Platzhalter sofort anzeigen (Spinner), damit man sieht dass etwas passiert
+      window._aktFotos.push({ id: fotoId, pfad: '', url: null, annotationen: [] });
+      renderNotizFotoGrid();
+      try {
+        const sRef = window._storageRef(window._storage, `eiknotes/${anlageId}/${notizId}/${uuid()}.jpg`);
+        await window._uploadBytes(sRef, file);
+        const url = await window._getDownloadURL(sRef);
+        const i = window._aktFotos.findIndex(f => f.id === fotoId);
+        if (i >= 0) window._aktFotos[i].url = url;
+        // Sofort in die Lightbox-Lookup-Map eintragen - sonst würde ein Klick
+        // auf das gerade erst hochgeladene Foto (vor dem nächsten renderNotizen())
+        // die Annotationen noch nicht finden.
+        if (!window._fotoMap) window._fotoMap = {};
+        window._fotoMap[fotoId] = window._aktFotos[i];
+        // Zusätzlich robust in den separaten foto_urls-Knoten schreiben
+        // (gleiches Prinzip wie in der App: URL geht so nie verloren, auch
+        // wenn das Speichern der Notiz danach fehlschlägt/abgebrochen wird).
+        try { await window._set(window._ref(window._db, `eiknotes/foto_urls/${fotoId}`), url); } catch (_) {}
+        renderNotizFotoGrid();
+      } catch (e) {
+        console.error('Foto-Upload fehlgeschlagen:', e);
+        window._aktFotos = window._aktFotos.filter(f => f.id !== fotoId);
+        renderNotizFotoGrid();
+        alert('Foto-Upload fehlgeschlagen: ' + e.message);
+      }
+    }
+  }
+
+  window.notizFotoLoeschen = function(fotoId) {
+    if (!confirm('Foto löschen?')) return;
+    window._aktFotos = window._aktFotos.filter(f => f.id !== fotoId);
+    renderNotizFotoGrid();
+  };
+
+  // ── Foto extern bearbeiten (Snagit, Paint, GIMP, o.ä.) und zurückspielen ──
+  window.fotoHerunterladen = async function(fotoId) {
+    const f = window._aktFotos.find(x => x.id === fotoId);
+    if (!f || !f.url) return;
+    try {
+      const resp = await fetch(f.url);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl; a.download = `eiknotes_foto_${fotoId}.jpg`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.error('Download fehlgeschlagen:', e);
+      // Fallback: im neuen Tab öffnen, falls Fetch/CORS nicht klappt
+      window.open(f.url, '_blank');
+    }
+  };
+
+  // Ein Button für beide Rückwege: zuerst automatisch die Zwischenablage
+  // versuchen (funktioniert direkt nach Strg+C im Bildbearbeitungsprogramm),
+  // und nur falls dort nichts Brauchbares liegt (oder der Browser das nicht
+  // unterstützt) den Datei-Dialog als Fallback öffnen. Spart einen Klick und
+  // die Entscheidung "welchen Button nehme ich".
+  window.fotoErsetzenAuto = async function(fotoId) {
+    if (navigator.clipboard && navigator.clipboard.read) {
+      try {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const typ = item.types.find(t => t.startsWith('image/'));
+          if (typ) {
+            const blob = await item.getType(typ);
+            await fotoErsetzenMitDatei(fotoId, blob);
+            return;
+          }
+        }
+      } catch (_) {
+        // Berechtigung verweigert oder Zwischenablage leer -> unten Fallback
+      }
+    }
+    window.fotoDateiErsetzenStarten(fotoId);
+  };
+
+  // Drag & Drop: bearbeitete Datei direkt aus dem Explorer/Finder auf das
+  // Foto ziehen, ganz ohne Button.
+  window.fotoDropErsetzen = function(event, fotoId) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('drag-over');
+    const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    fotoErsetzenMitDatei(fotoId, file);
+  };
+
+  window.fotoDateiErsetzenStarten = function(fotoId) {
+    window._ersetzenZielFotoId = fotoId;
+    document.getElementById('notizFotoErsetzenInput').click();
+  };
+
+  async function handleNotizFotoErsetzen(event) {
+    const file = event.target.files && event.target.files[0];
+    const fotoId = window._ersetzenZielFotoId;
+    event.target.value = '';
+    window._ersetzenZielFotoId = null;
+    if (!file || !fotoId) return;
+    await fotoErsetzenMitDatei(fotoId, file);
+  }
+
+  // Lädt eine neu bearbeitete Version zu Firebase Storage hoch und ersetzt
+  // die URL im bestehenden Foto-Eintrag (gleiche ID, gleiche Position im
+  // Raster). Annotationen aus der App werden zurückgesetzt, da sie sich auf
+  // das alte Bild bezogen und nach externer Bearbeitung nicht mehr passen.
+  async function fotoErsetzenMitDatei(fotoId, datei) {
+    const anlageId = window._aktAnlageIdFuerUpload;
+    const notizId = window._aktNotizIdFuerUpload;
+    if (!anlageId || !notizId) { alert('Bitte zuerst eine Notiz öffnen/anlegen'); return; }
+    const i = window._aktFotos.findIndex(f => f.id === fotoId);
+    if (i < 0) return;
+    const altesUrl = window._aktFotos[i].url;
+    window._aktFotos[i].url = null; // Spinner anzeigen während des Uploads
+    renderNotizFotoGrid();
+    try {
+      const sRef = window._storageRef(window._storage, `eiknotes/${anlageId}/${notizId}/${uuid()}.jpg`);
+      await window._uploadBytes(sRef, datei);
+      const url = await window._getDownloadURL(sRef);
+      window._aktFotos[i].url = url;
+      window._aktFotos[i].annotationen = [];
+      try { await window._set(window._ref(window._db, `eiknotes/foto_urls/${fotoId}`), url); } catch (_) {}
+      renderNotizFotoGrid();
+    } catch (e) {
+      console.error('Foto-Ersetzen fehlgeschlagen:', e);
+      window._aktFotos[i].url = altesUrl;
+      renderNotizFotoGrid();
+      alert('Ersetzen fehlgeschlagen: ' + e.message);
+    }
+  }
+
+  // ── Dokumente (PDF/Word/Excel/beliebig) - auf Anlagen-Ebene, gelten für ──
+  // alle Notizen der Anlage, nicht pro einzelner Notiz.
+  window.handleDokumentUpload = async function(event) {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    const a = window.getAktAnlage();
+    if (!a) { alert('Bitte zuerst eine Anlage auswählen'); return; }
+    if (!a.dokumente) a.dokumente = [];
+    const dokId = uuid();
+    a.dokumente.push({ id: dokId, name: file.name, url: null });
+    renderNotizen();
+    try {
+      const sRef = window._storageRef(window._storage, `eiknotes/dokumente/${a.id}/${dokId}_${file.name}`);
+      await window._uploadBytes(sRef, file);
+      const url = await window._getDownloadURL(sRef);
+      const i = a.dokumente.findIndex(d => d.id === dokId);
+      if (i >= 0) a.dokumente[i].url = url;
+      await window.saveToFirebase();
+      renderNotizen();
+    } catch (e) {
+      console.error('Dokument-Upload fehlgeschlagen:', e);
+      a.dokumente = a.dokumente.filter(d => d.id !== dokId);
+      renderNotizen();
+      alert('Hochladen fehlgeschlagen: ' + e.message);
+    }
+  };
+
+  window.dokumentOeffnen = function(dokId) {
+    const a = window.getAktAnlage();
+    const d = a && (a.dokumente || []).find(x => x.id === dokId);
+    if (!d) return;
+    if (!d.url) { alert('Dokument wird noch hochgeladen…'); return; }
+    window.open(d.url, '_blank');
+  };
+
+  window.dokumentLoeschen = function(dokId) {
+    const a = window.getAktAnlage();
+    if (!a) return;
+    const d = (a.dokumente || []).find(x => x.id === dokId);
+    if (!d || !confirm(`"${d.name}" löschen?`)) return;
+    a.dokumente = a.dokumente.filter(x => x.id !== dokId);
+    saveToFirebase();
+    renderNotizen();
+  };
+
+  // ── Modal ────────────────────────────────────────────────────────────
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  window.closeModal = closeModal;
+  window.neueAnlage = neueAnlage;
+  window.neueNotiz = neueNotiz;
+  window.setBewertung = setBewertung;
+  window.openModal = openModal;
+  window.setBewertung = setBewertung;
+
+  // ── Foto-Vollansicht ────────────────────────────────────────────────────
+  // Flutter speichert Farben als ARGB-Ganzzahl (Color.value); daraus die
+  // CSS-Farbe extrahieren (Alpha-Byte ignorieren, RGB-Bytes auslesen).
+  function argbZuCss(v) {
+    const r = (v >> 16) & 0xFF, g = (v >> 8) & 0xFF, b = v & 0xFF;
+    return `rgb(${r},${g},${b})`;
+  }
+  function hellGenugFuerSchwarzenText(v) {
+    const r = (v >> 16) & 0xFF, g = (v >> 8) & 0xFF, b = v & 0xFF;
+    return (r * 299 + g * 587 + b * 114) / 1000 > 150;
+  }
+
+  // Rendert eine einzelne Annotation (Punkt/Pfeil/Kreis/Rechteck) als HTML.
+  // w/h = tatsächliche gerenderte Bildgröße in Pixeln (für Pfeil/Kreis/Rechteck
+  // nötig, da Kreisradius bei nicht-quadratischem Bild sonst verzerrt wäre).
+  function renderAnnotation(a, w, h) {
+    const farbe = argbZuCss(a.color);
+    const textFarbe = hellGenugFuerSchwarzenText(a.color) ? '#000' : '#fff';
+    const typ = a.typ || 0; // 0=Punkt, 1=Pfeil, 2=Kreis, 3=Rechteck (Rückwärtskompatibel: alte Daten ohne 'typ' = Punkt)
+
+    if (typ === 0 || a.x2 == null || a.y2 == null) {
+      return `<div class="annot-marker" style="left:${a.x * 100}%; top:${a.y * 100}%;">
+        <div class="annot-dot" style="background:${farbe}"></div>
+        ${a.text ? `<div class="annot-label" style="background:${farbe}; color:${textFarbe}">${a.text}</div>` : ''}
+      </div>`;
+    }
+
+    const x1 = a.x * w, y1 = a.y * h, x2 = a.x2 * w, y2 = a.y2 * h;
+
+    if (typ === 1) {
+      const winkel = Math.atan2(y2 - y1, x2 - x1);
+      const spitzeLaenge = 14, spitzeWinkel = 0.5;
+      const p1x = x2 - Math.cos(winkel - spitzeWinkel) * spitzeLaenge, p1y = y2 - Math.sin(winkel - spitzeWinkel) * spitzeLaenge;
+      const p2x = x2 - Math.cos(winkel + spitzeWinkel) * spitzeLaenge, p2y = y2 - Math.sin(winkel + spitzeWinkel) * spitzeLaenge;
+      return `<svg style="position:absolute;left:0;top:0;width:${w}px;height:${h}px;pointer-events:none;">
+          <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${farbe}" stroke-width="3" stroke-linecap="round"/>
+          <polygon points="${x2},${y2} ${p1x},${p1y} ${p2x},${p2y}" fill="${farbe}"/>
+        </svg>
+        ${a.text ? `<div class="annot-label" style="position:absolute;left:${(x1 + x2) / 2}px;top:${(y1 + y2) / 2}px;background:${farbe};color:${textFarbe};transform:translate(-50%,-50%)">${a.text}</div>` : ''}`;
+    }
+
+    if (typ === 2) {
+      const radius = Math.hypot(x2 - x1, y2 - y1);
+      return `<div style="position:absolute;left:${x1 - radius}px;top:${y1 - radius}px;width:${radius * 2}px;height:${radius * 2}px;border-radius:50%;border:3px solid ${farbe};box-sizing:border-box;"></div>
+        ${a.text ? `<div class="annot-label" style="position:absolute;left:${x1}px;top:${y1 - radius - 8}px;background:${farbe};color:${textFarbe};transform:translate(-50%,-100%)">${a.text}</div>` : ''}`;
+    }
+
+    // Rechteck
+    const links = Math.min(x1, x2), oben = Math.min(y1, y2), breite = Math.abs(x1 - x2), hoehe = Math.abs(y1 - y2);
+    return `<div style="position:absolute;left:${links}px;top:${oben}px;width:${breite}px;height:${hoehe}px;border:3px solid ${farbe};box-sizing:border-box;"></div>
+      ${a.text ? `<div class="annot-label" style="position:absolute;left:${links}px;top:${oben - 8}px;background:${farbe};color:${textFarbe};transform:translate(0,-100%)">${a.text}</div>` : ''}`;
+  }
+
+  window.fotoAnzeigen = function(fotoId) {
+    const foto = window._fotoMap ? window._fotoMap[fotoId] : null;
+    if (!foto) return;
+    window._lightboxFotoId = fotoId;
+    window._lightboxBearbeiten = false;
+    document.getElementById('lightboxToolbar').style.display = 'none';
+    document.getElementById('lightboxBearbeitenBtn').textContent = '✏️ Bearbeiten';
+    const img = document.getElementById('lightboxImg');
+    img.onload = window.lightboxRender;
+    img.src = foto.url;
+    document.getElementById('lightbox').classList.add('open');
+    if (img.complete) window.lightboxRender(); // Bild ggf. schon aus Cache verfügbar, onload feuert dann u.U. nicht erneut
+  };
+  window.fotoSchliessen = function() {
+    document.getElementById('lightbox').classList.remove('open');
+  };
+
+  // ── Annotationen direkt am PC bearbeiten ────────────────────────────────
+  // Mausereignisse (mousedown/mousemove/mouseup) haben - anders als am Handy -
+  // keine konkurrierende Zoom/Pan-Geste, mit der sie um dieselbe Berührung
+  // "kämpfen" müssten - daher hier unkompliziert direkt umsetzbar.
+  window._lightboxBearbeiten = false;
+  window._lightboxTyp = 0;      // 0=Punkt,1=Pfeil,2=Kreis,3=Rechteck
+  window._lightboxFarbe = 4294901760; // Rot (ARGB), passend zum Farbformat der App
+  window._ziehIndex = null;
+  window._ziehGroesse = false;
+  window._ziehStartRelX = 0;
+  window._ziehStartRelY = 0;
+  window._ziehStartPos = null;
+  window._ziehStartPos2 = null;
+
+  window.lightboxRender = function() {
+    const foto = window._fotoMap[window._lightboxFotoId];
+    if (!foto) return;
+    const img = document.getElementById('lightboxImg');
+    const w = img.clientWidth, h = img.clientHeight;
+    const annotationen = foto.annotationen || [];
+    document.getElementById('lightboxAnnotations').innerHTML = window._lightboxBearbeiten
+      ? annotationen.map((a, i) => renderAnnotationBearbeitbar(a, i, w, h)).join('')
+      : annotationen.map(a => renderAnnotation(a, w, h)).join('');
+  };
+
+  window.lightboxBearbeitenUmschalten = function() {
+    window._lightboxBearbeiten = !window._lightboxBearbeiten;
+    document.getElementById('lightboxToolbar').style.display = window._lightboxBearbeiten ? 'flex' : 'none';
+    document.getElementById('lightboxBearbeitenBtn').textContent = window._lightboxBearbeiten ? '✓ Fertig' : '✏️ Bearbeiten';
+    document.getElementById('lightboxImg').style.cursor = window._lightboxBearbeiten ? 'crosshair' : 'default';
+    window.lightboxRender();
+  };
+
+  window.lightboxTypWaehlen = function(typ, ev) {
+    ev.stopPropagation();
+    window._lightboxTyp = typ;
+    document.querySelectorAll('.lb-form-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.typ) === typ));
+  };
+
+  window.lightboxFarbeWaehlen = function(farbe, ev) {
+    ev.stopPropagation();
+    window._lightboxFarbe = farbe;
+    document.querySelectorAll('.lb-farbe-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.farbe) === farbe));
+  };
+
+  window.lightboxBildKlick = function(ev) {
+    if (!window._lightboxBearbeiten) return;
+    if (window._ziehIndex != null) return; // während des Ziehens keine neue Markierung anlegen
+    const img = document.getElementById('lightboxImg');
+    const rect = img.getBoundingClientRect();
+    const relX = (ev.clientX - rect.left) / rect.width;
+    const relY = (ev.clientY - rect.top) / rect.height;
+    if (relX < 0 || relX > 1 || relY < 0 || relY > 1) return;
+    const foto = window._fotoMap[window._lightboxFotoId];
+    if (!foto.annotationen) foto.annotationen = [];
+    const typ = window._lightboxTyp;
+    const farbe = window._lightboxFarbe;
+    const text = document.getElementById('lightboxText').value.trim();
+    if (typ === 0) {
+      if (!text) { alert('Zuerst Text eingeben'); return; }
+      foto.annotationen.push({ x: relX, y: relY, text, color: farbe, typ: 0 });
+    } else {
+      const g = 0.12;
+      foto.annotationen.push({
+        x: relX, y: relY,
+        x2: Math.min(1, relX + g), y2: Math.min(1, relY + g),
+        text, color: farbe, typ,
+      });
+    }
+    document.getElementById('lightboxText').value = '';
+    window.lightboxRender();
+  };
+
+  window.markerZiehStart = function(ev, index, groesse) {
+    ev.stopPropagation();
+    ev.preventDefault();
+    const foto = window._fotoMap[window._lightboxFotoId];
+    const a = foto.annotationen[index];
+    const img = document.getElementById('lightboxImg');
+    const rect = img.getBoundingClientRect();
+    window._ziehIndex = index;
+    window._ziehGroesse = !!groesse;
+    window._ziehStartRelX = (ev.clientX - rect.left) / rect.width;
+    window._ziehStartRelY = (ev.clientY - rect.top) / rect.height;
+    window._ziehStartPos = { x: a.x, y: a.y };
+    window._ziehStartPos2 = (a.x2 != null) ? { x: a.x2, y: a.y2 } : null;
+    document.addEventListener('mousemove', window._markerZiehMove);
+    document.addEventListener('mouseup', window._markerZiehEnd);
+  };
+
+  window._markerZiehMove = function(ev) {
+    if (window._ziehIndex == null) return;
+    const img = document.getElementById('lightboxImg');
+    const rect = img.getBoundingClientRect();
+    const relX = Math.min(1, Math.max(0, (ev.clientX - rect.left) / rect.width));
+    const relY = Math.min(1, Math.max(0, (ev.clientY - rect.top) / rect.height));
+    const foto = window._fotoMap[window._lightboxFotoId];
+    const a = foto.annotationen[window._ziehIndex];
+    if (window._ziehGroesse && a.x2 != null) {
+      a.x2 = relX; a.y2 = relY; // Größe/Richtung: Endpunkt folgt direkt der Maus
+    } else if (a.x2 != null) {
+      // Ganze Form verschieben: beide Punkte um denselben Versatz bewegen.
+      const dx = relX - window._ziehStartRelX, dy = relY - window._ziehStartRelY;
+      a.x = window._ziehStartPos.x + dx;
+      a.y = window._ziehStartPos.y + dy;
+      a.x2 = window._ziehStartPos2.x + dx;
+      a.y2 = window._ziehStartPos2.y + dy;
+    } else {
+      a.x = relX; a.y = relY; // Punkt-Markierung: direkt der Maus folgen
+    }
+    window.lightboxRender();
+  };
+
+  window._markerZiehEnd = function() {
+    window._ziehIndex = null;
+    window._ziehGroesse = false;
+    document.removeEventListener('mousemove', window._markerZiehMove);
+    document.removeEventListener('mouseup', window._markerZiehEnd);
+  };
+
+  window.lightboxLoeschen = function(index, ev) {
+    if (ev) ev.stopPropagation();
+    const foto = window._fotoMap[window._lightboxFotoId];
+    foto.annotationen.splice(index, 1);
+    window.lightboxRender();
+  };
+
+  window.lightboxSpeichern = async function() {
+    await window.saveToFirebase();
+    window._lightboxBearbeiten = false;
+    document.getElementById('lightboxToolbar').style.display = 'none';
+    document.getElementById('lightboxBearbeitenBtn').textContent = '✏️ Bearbeiten';
+    document.getElementById('lightboxImg').style.cursor = 'default';
+    window.lightboxRender();
+    setStatus('✓ Annotationen gespeichert', true);
+    renderNotizen();
+  };
+
+  // Wie renderAnnotation(), aber mit Ziehpunkten (Verschieben/Größe) und
+  // Löschen-Symbol - nur im Bearbeiten-Modus verwendet.
+  function renderAnnotationBearbeitbar(a, i, w, h) {
+    const farbe = argbZuCss(a.color);
+    const textFarbe = hellGenugFuerSchwarzenText(a.color) ? '#000' : '#fff';
+    const typ = a.typ || 0;
+
+    if (typ === 0 || a.x2 == null || a.y2 == null) {
+      return `<div class="annot-marker" style="left:${a.x * 100}%; top:${a.y * 100}%; pointer-events:auto; cursor:grab;"
+            onmousedown="window.markerZiehStart(event, ${i})">
+          <div class="annot-dot" style="background:${farbe}"></div>
+          ${a.text ? `<div class="annot-label" style="background:${farbe}; color:${textFarbe}">${a.text}</div>` : ''}
+        </div>
+        <div class="lb-del-badge" style="left:${a.x * 100}%; top:${a.y * 100}%;" onclick="window.lightboxLoeschen(${i}, event)">✕</div>`;
+    }
+
+    const x1 = a.x * w, y1 = a.y * h, x2 = a.x2 * w, y2 = a.y2 * h;
+    const mitteX = (x1 + x2) / 2, mitteY = (y1 + y2) / 2;
+    let form = '';
+    if (typ === 1) {
+      const winkel = Math.atan2(y2 - y1, x2 - x1);
+      const spitzeLaenge = 14, spitzeWinkel = 0.5;
+      const p1x = x2 - Math.cos(winkel - spitzeWinkel) * spitzeLaenge, p1y = y2 - Math.sin(winkel - spitzeWinkel) * spitzeLaenge;
+      const p2x = x2 - Math.cos(winkel + spitzeWinkel) * spitzeLaenge, p2y = y2 - Math.sin(winkel + spitzeWinkel) * spitzeLaenge;
+      form = `<svg style="position:absolute;left:0;top:0;width:${w}px;height:${h}px;pointer-events:none;">
+          <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${farbe}" stroke-width="3" stroke-linecap="round"/>
+          <polygon points="${x2},${y2} ${p1x},${p1y} ${p2x},${p2y}" fill="${farbe}"/>
+        </svg>`;
+    } else if (typ === 2) {
+      const radius = Math.hypot(x2 - x1, y2 - y1);
+      form = `<div style="position:absolute;left:${x1 - radius}px;top:${y1 - radius}px;width:${radius * 2}px;height:${radius * 2}px;border-radius:50%;border:3px solid ${farbe};box-sizing:border-box;pointer-events:none;"></div>`;
+    } else {
+      const links = Math.min(x1, x2), oben = Math.min(y1, y2), breite = Math.abs(x1 - x2), hoehe = Math.abs(y1 - y2);
+      form = `<div style="position:absolute;left:${links}px;top:${oben}px;width:${breite}px;height:${hoehe}px;border:3px solid ${farbe};box-sizing:border-box;pointer-events:none;"></div>`;
+    }
+    return `${form}
+      ${a.text ? `<div class="annot-label" style="position:absolute;left:${mitteX}px;top:${mitteY - 26}px;background:${farbe};color:${textFarbe};transform:translate(-50%,-100%);pointer-events:none;">${a.text}</div>` : ''}
+      <div class="lb-handle" style="left:${mitteX}px;top:${mitteY}px;background:${farbe};" onmousedown="window.markerZiehStart(event, ${i}, false)"></div>
+      <div class="lb-handle" style="left:${x2}px;top:${y2}px;background:${farbe};" onmousedown="window.markerZiehStart(event, ${i}, true)"></div>
+      <div class="lb-del-badge" style="left:${mitteX}px;top:${mitteY}px;" onclick="window.lightboxLoeschen(${i}, event)">✕</div>`;
+  }
+
+  window.lightboxFotoHerunterladen = async function() {
+    const url = document.getElementById('lightboxImg').src;
+    if (!url) return;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl; a.download = 'eiknotes_foto.jpg';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.error('Download fehlgeschlagen:', e);
+      window.open(url, '_blank'); // Fallback, falls Fetch/CORS nicht klappt
+    }
+  };
+</script>
+</body>
+</html>
