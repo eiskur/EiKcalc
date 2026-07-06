@@ -96,6 +96,16 @@
   .notiz-sprach-row { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 14px; border-left: 1px solid rgba(0,0,0,0.08); margin-top: 6px; }
   .notiz-sprach-row audio { height: 32px; max-width: 220px; }
 
+  .sprach-menu { position: relative; }
+  .sprach-menu summary { list-style: none; cursor: pointer; color: var(--muted); font-size: 16px; padding: 2px 8px; user-select: none; }
+  .sprach-menu summary::-webkit-details-marker { display: none; }
+  .sprach-menu[open] summary { color: var(--text); }
+  .sprach-menu-list { position: absolute; right: 0; top: 24px; background: white; border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12); z-index: 20; min-width: 110px; overflow: hidden; }
+  .sprach-menu-list button { display: block; width: 100%; text-align: left; padding: 8px 12px; border: none; background: none;
+    font-size: 12px; color: var(--red); cursor: pointer; }
+  .sprach-menu-list button:hover { background: var(--bg); }
+
   .dokumente-leiste { display: flex; align-items: center; gap: 10px; background: white; border: 1px solid var(--border);
     border-radius: 10px; padding: 8px 12px; margin-bottom: 16px; }
   .dokumente-chips { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; }
@@ -255,8 +265,11 @@
     <div class="modal-body">
       <div class="sec-label">Bezeichnung</div>
       <div class="field-group">
-        <label>Anlagenname</label>
         <input id="anlageName" type="text" placeholder="z.B. Seilbahn Kronplatz">
+      </div>
+      <div class="sec-label">TR-Nummer</div>
+      <div class="field-group">
+        <input id="anlageTrNummer" type="text" placeholder="z.B. TR 25 260706">
       </div>
       <div class="sec-label">Beschreibung</div>
       <div class="field-group">
@@ -388,6 +401,7 @@
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
   import { getDatabase, ref, set, get, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
   import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+  import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
   const firebaseConfig = {
     apiKey: 'AIzaSyC6o4DPT_ux5yTtM8Zum3odZIKAPKP4avE',
@@ -429,6 +443,26 @@
   window._getDownloadURL = getDownloadURL;
   window._deleteObject = deleteObject;
   window._fotoUrls = {};
+
+  // Anonyme Anmeldung: nötig, damit die Datenbank-Regeln "auth != null"
+  // verlangen können, statt komplett offen ("true"/"true") zu sein - siehe
+  // Firebase-Sicherheitswarnung. Kein Login für den Nutzer nötig, läuft
+  // automatisch im Hintergrund. Wichtig: das await hier (Top-Level-Await in
+  // diesem Modul-Script) sorgt dafür, dass die folgenden onValue()-Aufrufe
+  // erst starten, NACHDEM die Anmeldung abgeschlossen ist - sonst würden sie
+  // sofort mit "Permission denied" fehlschlagen.
+  const auth = getAuth(app);
+  window._auth = auth;
+  try {
+    await signInAnonymously(auth);
+  } catch (e) {
+    console.error('Anonyme Anmeldung fehlgeschlagen:', e);
+    const statusEl = document.getElementById('statusBar');
+    if (statusEl) {
+      statusEl.textContent = 'Anmeldung bei Firebase fehlgeschlagen: ' + e.message;
+      statusEl.className = 'status-bar status-err';
+    }
+  }
 
   // Patcht fehlende/veraltete Foto-URLs (fotoId -> url) direkt in die
   // geladenen Anlagen. Grund: die App schreibt frisch hochgeladene URLs
@@ -577,6 +611,7 @@
       const zeitraum = String(a.monat).padStart(2, '0') + '.' + a.jahr;
       return (a.name || '').toLowerCase().includes(q)
         || (a.beschreibung || '').toLowerCase().includes(q)
+        || (a.trNummer || '').toLowerCase().includes(q)
         || zeitraum.includes(q);
     });
   }
@@ -739,6 +774,7 @@
           ${nok > 0 ? `<span class="badge badge-red">${nok} NOK</span>` : ''}
           ${warn > 0 ? `<span class="badge badge-orange">${warn} Warn</span>` : ''}
         </div>
+        ${a.trNummer ? `<div style="font-size:11px;color:var(--blue);font-weight:600;margin-top:3px">TR-Nr.: ${a.trNummer}</div>` : ''}
         ${a.beschreibung ? `<div style="font-size:11px;color:var(--text);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.beschreibung}</div>` : ''}
         <button class="anlage-item-del" title="Anlage löschen"
           style="position:absolute;top:12px;right:10px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:4px">🗑</button>`;
@@ -770,7 +806,7 @@
       <div class="section-header">
         <div>
           <h2>${a.name}</h2>
-          <p>${String(a.monat).padStart(2,'0')}.${a.jahr} · ${notizenAlle.length} Notiz${notizenAlle.length===1?'':'en'}</p>
+          <p>${String(a.monat).padStart(2,'0')}.${a.jahr} · ${notizenAlle.length} Notiz${notizenAlle.length===1?'':'en'}${a.trNummer ? ` · TR-Nr.: ${a.trNummer}` : ''}</p>
           ${a.beschreibung ? `<p style="margin-top:4px;color:var(--text);font-size:13px">${a.beschreibung}</p>` : ''}
         </div>
         <div style="display:flex;gap:8px">
@@ -851,6 +887,7 @@
   function neueAnlage() {
     document.getElementById('modalAnlageTitel').textContent = 'Neuer Eintrag';
     document.getElementById('anlageName').value = '';
+    document.getElementById('anlageTrNummer').value = '';
     document.getElementById('anlageBeschreibung').value = '';
     document.getElementById('anlageMonat').value = new Date().getMonth() + 1;
     document.getElementById('anlageJahr').value = new Date().getFullYear();
@@ -863,6 +900,7 @@
     if (!name) return;
     const neu = {
       id: uuid(), name,
+      trNummer: document.getElementById('anlageTrNummer').value.trim(),
       beschreibung: document.getElementById('anlageBeschreibung').value.trim(),
       monat: parseInt(document.getElementById('anlageMonat').value),
       jahr: parseInt(document.getElementById('anlageJahr').value),
@@ -1085,7 +1123,12 @@
         <span>🎤</span>
         ${s.url ? `<audio controls src="${s.url}"></audio>` : `<span style="font-size:12px;color:var(--muted);flex:1">Hochladen…</span>`}
         <span class="sprachnotiz-dauer">${formatDauer(s.dauerSekunden || 0)}</span>
-        <span class="dok-chip-del" style="cursor:pointer;font-size:13px" onclick="window.sprachnotizLoeschen('${s.id}')">✕</span>
+        <details class="sprach-menu">
+          <summary>⋮</summary>
+          <div class="sprach-menu-list">
+            <button onclick="window.sprachnotizLoeschen('${s.id}')">🗑 Löschen</button>
+          </div>
+        </details>
       </div>`).join('') || '<div style="font-size:12px;color:var(--muted)">Noch keine Sprachnotizen</div>';
   }
   window.renderNotizSprachListe = renderNotizSprachListe;
