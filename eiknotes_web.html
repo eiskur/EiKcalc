@@ -296,7 +296,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" style="color:var(--text);background:var(--bg);border:1px solid var(--border)" onclick="closeModal('modalAnlage')">Abbrechen</button>
-      <button class="btn btn-blue" onclick="anlageSpeiichern()">Erstellen</button>
+      <button class="btn btn-blue" id="anlageSpeichernBtn" onclick="anlageSpeiichern()">Erstellen</button>
     </div>
   </div>
 </div>
@@ -771,7 +771,7 @@
       div.className = 'anlage-item' + (window._aktAnlageId === a.id ? ' active' : '');
       div.style.position = 'relative';
       div.innerHTML = `
-        <div class="anlage-name" style="padding-right:26px">${a.name}</div>
+        <div class="anlage-name" style="padding-right:50px">${a.name}</div>
         <div class="anlage-meta">
           <span>${String(a.monat).padStart(2,'0')}.${a.jahr}</span>
           <span>${(a.notizen||[]).length} Notizen</span>
@@ -780,9 +780,15 @@
         </div>
         ${a.trNummer ? `<div style="font-size:11px;color:var(--blue);font-weight:600;margin-top:3px">TR-Nr.: ${a.trNummer}</div>` : ''}
         ${a.beschreibung ? `<div style="font-size:11px;color:var(--text);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.beschreibung}</div>` : ''}
+        <button class="anlage-item-edit" title="Anlage bearbeiten"
+          style="position:absolute;top:12px;right:34px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;padding:4px">✎</button>
         <button class="anlage-item-del" title="Anlage löschen"
           style="position:absolute;top:12px;right:10px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:4px">🗑</button>`;
       div.onclick = () => { window._aktAnlageId = a.id; window._notizSuche = ''; renderAnlagen(); renderNotizen(); };
+      div.querySelector('.anlage-item-edit').onclick = (ev) => {
+        ev.stopPropagation();
+        window.anlageBearbeiten(a.id);
+      };
       div.querySelector('.anlage-item-del').onclick = (ev) => {
         ev.stopPropagation();
         window.anlageLoeschen(a.id);
@@ -888,8 +894,12 @@
   }
 
   // ── Anlage ────────────────────────────────────────────────────────────
+  window._aktAnlageBearbeitenId = null; // null = Neu anlegen, sonst ID der zu bearbeitenden Anlage
+
   function neueAnlage() {
+    window._aktAnlageBearbeitenId = null;
     document.getElementById('modalAnlageTitel').textContent = 'Neuer Eintrag';
+    document.getElementById('anlageSpeichernBtn').textContent = 'Erstellen';
     document.getElementById('anlageName').value = '';
     document.getElementById('anlageTrNummer').value = '';
     document.getElementById('anlageBeschreibung').value = '';
@@ -899,15 +909,53 @@
     setTimeout(() => document.getElementById('anlageName').focus(), 100);
   }
 
+  // Öffnet dasselbe Modal, aber vorausgefüllt mit den Daten einer bestehenden
+  // Anlage - beim Speichern wird dann aktualisiert statt neu angelegt.
+  window.anlageBearbeiten = function(id) {
+    const a = window._anlagen.find(x => x.id === id);
+    if (!a) return;
+    window._aktAnlageBearbeitenId = id;
+    document.getElementById('modalAnlageTitel').textContent = 'Anlage bearbeiten';
+    document.getElementById('anlageSpeichernBtn').textContent = 'Speichern';
+    document.getElementById('anlageName').value = a.name || '';
+    document.getElementById('anlageTrNummer').value = a.trNummer || '';
+    document.getElementById('anlageBeschreibung').value = a.beschreibung || '';
+    document.getElementById('anlageMonat').value = a.monat;
+    document.getElementById('anlageJahr').value = a.jahr;
+    openModal('modalAnlage');
+    setTimeout(() => document.getElementById('anlageName').focus(), 100);
+  };
+
   window.anlageSpeiichern = async function() {
     const name = document.getElementById('anlageName').value.trim();
     if (!name) return;
+    const trNummer = document.getElementById('anlageTrNummer').value.trim();
+    const beschreibung = document.getElementById('anlageBeschreibung').value.trim();
+    const monat = parseInt(document.getElementById('anlageMonat').value);
+    const jahr = parseInt(document.getElementById('anlageJahr').value);
+
+    if (window._aktAnlageBearbeitenId) {
+      // Bearbeiten: bestehenden Eintrag aktualisieren, alles andere
+      // (Notizen, Dokumente, erstellt-Zeitstempel) unverändert lassen.
+      const a = window._anlagen.find(x => x.id === window._aktAnlageBearbeitenId);
+      if (a) {
+        a.name = name; a.trNummer = trNummer; a.beschreibung = beschreibung;
+        a.monat = monat; a.jahr = jahr;
+      }
+      window._aktAnlageBearbeitenId = null;
+      closeModal('modalAnlage');
+      await window.saveToFirebase();
+      setStatus('✓ Anlage aktualisiert', true);
+      renderAnlagen();
+      renderNotizen();
+      return;
+    }
+
     const neu = {
       id: uuid(), name,
-      trNummer: document.getElementById('anlageTrNummer').value.trim(),
-      beschreibung: document.getElementById('anlageBeschreibung').value.trim(),
-      monat: parseInt(document.getElementById('anlageMonat').value),
-      jahr: parseInt(document.getElementById('anlageJahr').value),
+      trNummer,
+      beschreibung,
+      monat, jahr,
       erstellt: new Date().toISOString(),
       notizen: [],
       dokumente: []
