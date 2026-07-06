@@ -430,6 +430,10 @@
     const be = b.erstellt ? new Date(b.erstellt).getTime() : 0;
     return be - ae;
   }
+  // Modul-Scripts haben einen eigenen Scope - ohne diese Zeile wäre die
+  // Funktion für den zweiten <script>-Block (Sortierung/Filter) unsichtbar
+  // und würde dort einen "not defined"-Fehler auslösen.
+  window.anlagenVergleich = anlagenVergleich;
 
   // Globaler State
   window._db = db;
