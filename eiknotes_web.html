@@ -84,6 +84,18 @@
   .notiz-search .such-clear.zeigen { display: block; }
   .notiz-search-info { font-size: 11px; color: var(--muted); margin: -6px 0 12px 2px; }
 
+  .sprach-rec-btn { display: inline-flex; align-items: center; gap: 6px; background: white; border: 1.5px solid var(--red);
+    color: var(--red); border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .sprach-rec-btn.aktiv { background: rgba(217,64,64,0.08); }
+  .sprach-rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); animation: sprachpuls 1s infinite; }
+  @keyframes sprachpuls { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+  .sprachnotiz-item { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; }
+  .sprachnotiz-item audio { flex: 1; height: 32px; min-width: 0; }
+  .sprachnotiz-dauer { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .notiz-sprach-row { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 14px; border-left: 1px solid rgba(0,0,0,0.08); margin-top: 6px; }
+  .notiz-sprach-row audio { height: 32px; max-width: 220px; }
+
   .dokumente-leiste { display: flex; align-items: center; gap: 10px; background: white; border: 1px solid var(--border);
     border-radius: 10px; padding: 8px 12px; margin-bottom: 16px; }
   .dokumente-chips { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; }
@@ -318,6 +330,15 @@
       <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:10px"
         onclick="document.getElementById('notizFotoInput').click()">📷 Foto hinzufügen</button>
       <div id="notizFotoGrid" class="notiz-foto-grid"></div>
+
+      <div class="sec-label">Sprachnotizen</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <button class="sprach-rec-btn" id="sprachAufnahmeBtn" onclick="window.sprachAufnahmeToggle()">🎙️ Aufnahme starten</button>
+        <span id="sprachAufnahmeTimer" style="display:none;align-items:center;gap:6px;color:var(--red);font-size:12px;font-weight:700">
+          <span class="sprach-rec-dot"></span><span id="sprachAufnahmeZeit">00:00</span>
+        </span>
+      </div>
+      <div id="notizSprachListe"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" style="color:var(--text);background:var(--bg);border:1px solid var(--border)" onclick="closeModal('modalNotiz')">Abbrechen</button>
@@ -421,6 +442,9 @@
         for (const f of (n.fotos || [])) {
           if (urls[f.id] && f.url !== urls[f.id]) f.url = urls[f.id];
         }
+        for (const s of (n.sprachnotizen || [])) {
+          if (urls[s.id] && s.url !== urls[s.id]) s.url = urls[s.id];
+        }
       }
     }
   };
@@ -519,6 +543,7 @@
   window._aktNotizId = null;
   window._aktBewertung = 'ok';
   window._aktFotos = [];       // Fotos der gerade im Modal bearbeiteten Messnotiz
+  window._aktSprachnotizen = []; // Sprachnotizen der gerade im Modal bearbeiteten Messnotiz
   window._aktAnlageIdFuerUpload = null; // anlageId zum Zeitpunkt des Öffnens des Modals
   window._anlagenSuche = '';   // Suchtext für die Anlagen-Liste (Sidebar)
   window._notizSuche = '';     // Suchtext für die Messnotizen-Liste (Hauptbereich)
@@ -809,6 +834,10 @@
                   ${(f.annotationen||[]).length > 0 ? `<span class="foto-annot-badge">${f.annotationen.length}</span>` : ''}
                 </div>`).join('')}
             </div>` : ''}
+            ${(n.sprachnotizen||[]).filter(s => s.url).length > 0 ? `
+            <div class="notiz-sprach-row">
+              ${(n.sprachnotizen||[]).filter(s => s.url).map(s => `<audio controls src="${s.url}"></audio>`).join('')}
+            </div>` : ''}
             <div class="notiz-actions">
               <button class="btn-sm btn-sm-blue" onclick="window.notizBearbeiten('${n.id}')">✏ Bearbeiten</button>
               <button class="btn-sm btn-sm-red" onclick="window.notizLoeschen('${n.id}')">Löschen</button>
@@ -870,6 +899,7 @@
     window._aktNotizId = null;
     window._aktBewertung = 'ok';
     window._aktFotos = [];
+    window._aktSprachnotizen = [];
     window._aktAnlageIdFuerUpload = window._aktAnlageId;
     // Feste, temporäre Notiz-ID schon jetzt vergeben, damit Fotos vor dem
     // ersten "Speichern" schon zu einem stabilen Storage-Pfad hochgeladen
@@ -881,6 +911,8 @@
     document.getElementById('notizBemerkung').value = '';
     setBewertung('ok');
     renderNotizFotoGrid();
+    resetAufnahmeUI();
+    renderNotizSprachListe();
     openModal('modalNotiz');
     setTimeout(() => document.getElementById('notizBenennung').focus(), 100);
   }
@@ -900,6 +932,7 @@
     // überschrieben worden. Direkte Referenz = beide Wege bearbeiten garantiert
     // dasselbe Objekt.
     window._aktFotos = n.fotos || [];
+    window._aktSprachnotizen = n.sprachnotizen || [];
     const bMap = [null, 'ok', 'warn', 'nok'];
     const bStr = n.bewertung === 0 ? 'ok' : n.bewertung === 1 ? 'warn' : 'nok';
     window._aktBewertung = bStr;
@@ -909,6 +942,8 @@
     document.getElementById('notizBemerkung').value = n.bemerkung || '';
     setBewertung(bStr);
     renderNotizFotoGrid();
+    resetAufnahmeUI();
+    renderNotizSprachListe();
     openModal('modalNotiz');
   };
 
@@ -927,7 +962,8 @@
       zyklenzahl: document.getElementById('notizZyklenzahl').value.trim(),
       bemerkung: document.getElementById('notizBemerkung').value.trim(),
       bewertung: bew,
-      fotos: window._aktFotos
+      fotos: window._aktFotos,
+      sprachnotizen: window._aktSprachnotizen
     };
     if (!a.notizen || !Array.isArray(a.notizen)) a.notizen = [];
     if (window._aktNotizId) {
@@ -1014,6 +1050,118 @@
     if (!confirm('Foto löschen?')) return;
     window._aktFotos = window._aktFotos.filter(f => f.id !== fotoId);
     renderNotizFotoGrid();
+  };
+
+  // ── Sprachnotizen im Messnotiz-Modal ─────────────────────────────────
+  window._mediaRecorder = null;
+  window._aufnahmeChunks = [];
+  window._aufnahmeStartZeit = null;
+  window._aufnahmeTimerId = null;
+
+  function formatDauer(sekunden) {
+    const m = Math.floor(sekunden / 60).toString().padStart(2, '0');
+    const s = Math.floor(sekunden % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  // Setzt Aufnahme-Button/Timer zurück (z.B. beim Öffnen des Modals), falls
+  // eine vorige Aufnahme nicht sauber gestoppt wurde.
+  function resetAufnahmeUI() {
+    if (window._mediaRecorder && window._mediaRecorder.state === 'recording') {
+      try { window._mediaRecorder.stop(); } catch (e) {}
+    }
+    clearInterval(window._aufnahmeTimerId);
+    const btn = document.getElementById('sprachAufnahmeBtn');
+    const timer = document.getElementById('sprachAufnahmeTimer');
+    if (btn) { btn.textContent = '🎙️ Aufnahme starten'; btn.classList.remove('aktiv'); }
+    if (timer) timer.style.display = 'none';
+  }
+
+  function renderNotizSprachListe() {
+    const el = document.getElementById('notizSprachListe');
+    if (!el) return;
+    el.innerHTML = window._aktSprachnotizen.map(s => `
+      <div class="sprachnotiz-item" data-sprach-id="${s.id}">
+        <span>🎤</span>
+        ${s.url ? `<audio controls src="${s.url}"></audio>` : `<span style="font-size:12px;color:var(--muted);flex:1">Hochladen…</span>`}
+        <span class="sprachnotiz-dauer">${formatDauer(s.dauerSekunden || 0)}</span>
+        <span class="dok-chip-del" style="cursor:pointer;font-size:13px" onclick="window.sprachnotizLoeschen('${s.id}')">✕</span>
+      </div>`).join('') || '<div style="font-size:12px;color:var(--muted)">Noch keine Sprachnotizen</div>';
+  }
+  window.renderNotizSprachListe = renderNotizSprachListe;
+
+  window.sprachAufnahmeToggle = async function() {
+    if (window._mediaRecorder && window._mediaRecorder.state === 'recording') {
+      window._mediaRecorder.stop();
+      return;
+    }
+    if (!window._aktAnlageIdFuerUpload || !window._aktNotizIdFuerUpload) {
+      alert('Bitte zuerst eine Messnotiz öffnen/anlegen');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      window._aufnahmeChunks = [];
+      const recorder = new MediaRecorder(stream);
+      window._mediaRecorder = recorder;
+      window._aufnahmeStartZeit = Date.now();
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) window._aufnahmeChunks.push(e.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        clearInterval(window._aufnahmeTimerId);
+        const btn = document.getElementById('sprachAufnahmeBtn');
+        const timer = document.getElementById('sprachAufnahmeTimer');
+        if (btn) { btn.textContent = '🎙️ Aufnahme starten'; btn.classList.remove('aktiv'); }
+        if (timer) timer.style.display = 'none';
+        const dauerSekunden = Math.round((Date.now() - window._aufnahmeStartZeit) / 1000);
+        const blob = new Blob(window._aufnahmeChunks, { type: recorder.mimeType || 'audio/webm' });
+        await sprachnotizHochladen(blob, dauerSekunden);
+      };
+      recorder.start();
+      const btn = document.getElementById('sprachAufnahmeBtn');
+      if (btn) { btn.textContent = '⏹️ Aufnahme stoppen'; btn.classList.add('aktiv'); }
+      const timerEl = document.getElementById('sprachAufnahmeTimer');
+      const zeitEl = document.getElementById('sprachAufnahmeZeit');
+      if (timerEl) timerEl.style.display = 'inline-flex';
+      if (zeitEl) zeitEl.textContent = '00:00';
+      window._aufnahmeTimerId = setInterval(() => {
+        const sek = Math.round((Date.now() - window._aufnahmeStartZeit) / 1000);
+        if (zeitEl) zeitEl.textContent = formatDauer(sek);
+      }, 500);
+    } catch (e) {
+      console.error('Mikrofon-Zugriff fehlgeschlagen:', e);
+      alert('Mikrofon-Zugriff nicht möglich: ' + e.message);
+    }
+  };
+
+  async function sprachnotizHochladen(blob, dauerSekunden) {
+    const anlageId = window._aktAnlageIdFuerUpload;
+    const notizId = window._aktNotizIdFuerUpload;
+    const sprachId = uuid();
+    window._aktSprachnotizen.push({ id: sprachId, url: null, dauerSekunden });
+    renderNotizSprachListe();
+    try {
+      const sRef = window._storageRef(window._storage, `eiknotes/${anlageId}/${notizId}/sprachnotiz_${uuid()}.webm`);
+      await window._uploadBytes(sRef, blob);
+      const url = await window._getDownloadURL(sRef);
+      const i = window._aktSprachnotizen.findIndex(s => s.id === sprachId);
+      if (i >= 0) window._aktSprachnotizen[i].url = url;
+      // Zusätzlich robust in den (generischen) foto_urls-Knoten schreiben -
+      // gleiches Prinzip wie bei Fotos, nur eben für Sprachnotiz-IDs.
+      try { await window._set(window._ref(window._db, `eiknotes/foto_urls/${sprachId}`), url); } catch (_) {}
+      renderNotizSprachListe();
+    } catch (e) {
+      console.error('Sprachnotiz-Upload fehlgeschlagen:', e);
+      window._aktSprachnotizen = window._aktSprachnotizen.filter(s => s.id !== sprachId);
+      renderNotizSprachListe();
+      alert('Sprachnotiz-Upload fehlgeschlagen: ' + e.message);
+    }
+  }
+
+  window.sprachnotizLoeschen = function(id) {
+    if (!confirm('Sprachnotiz löschen?')) return;
+    window._aktSprachnotizen = window._aktSprachnotizen.filter(s => s.id !== id);
+    renderNotizSprachListe();
   };
 
   // ── Foto extern bearbeiten (Snagit, Paint, GIMP, o.ä.) und zurückspielen ──
