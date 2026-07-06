@@ -167,6 +167,8 @@
   .annot-label { font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
   .notiz-actions { display: flex; gap: 8px; padding-left: 14px; border-left: 1px solid rgba(0,0,0,0.08); margin-left: auto; }
   .notiz-bew-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .erinnerung-chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 8px;
+    margin-top: 6px; background: color-mix(in srgb, currentColor 12%, white); }
   .btn-sm { padding: 5px 12px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; }
   .btn-sm-blue { background: var(--blue); color: white; }
   .btn-sm-red { background: transparent; color: var(--red); border: 1px solid var(--red); }
@@ -336,6 +338,11 @@
       <div class="sec-label">Bemerkung</div>
       <div class="field-group">
         <textarea id="notizBemerkung" rows="4" placeholder="Notizen, Beobachtungen…"></textarea>
+      </div>
+      <div class="sec-label">Erinnerung</div>
+      <div class="field-group" style="display:flex;align-items:center;gap:8px">
+        <input id="notizErinnerung" type="date" style="flex:1">
+        <span class="such-clear zeigen" style="position:static" title="Erinnerung entfernen" onclick="document.getElementById('notizErinnerung').value=''">✕</span>
       </div>
       <div class="sec-label">Fotos</div>
       <input type="file" id="notizFotoInput" accept="image/*" multiple style="display:none">
@@ -658,6 +665,15 @@
       kopie.sort((a, b) => (b.bewertung - a.bewertung) || (new Date(b.datum) - new Date(a.datum)));
     } else if (modus === 'benennung') {
       kopie.sort((a, b) => (a.benennung || a.messpunkt || '').localeCompare(b.benennung || b.messpunkt || '', 'de'));
+    } else if (modus === 'faelligkeit') {
+      // Notizen mit Erinnerung zuerst (nächste Fälligkeit zuerst), Notizen
+      // ohne Erinnerung ans Ende.
+      kopie.sort((a, b) => {
+        if (!a.erinnerung && !b.erinnerung) return new Date(b.datum) - new Date(a.datum);
+        if (!a.erinnerung) return 1;
+        if (!b.erinnerung) return -1;
+        return new Date(a.erinnerung) - new Date(b.erinnerung);
+      });
     } else {
       kopie.sort((a, b) => new Date(b.datum) - new Date(a.datum));
     }
@@ -740,6 +756,21 @@
   }
   function bewClass(b) {
     return b === 0 ? 'ok' : b === 1 ? 'warn' : 'nok';
+  }
+
+  // Berechnet Text + Farbe für die Fälligkeits-Anzeige einer Notiz-Erinnerung.
+  // Reine Anzeige (kein Push) - gleiche Logik wie in der Handy-App.
+  function erinnerungAnzeige(erinnerungIso) {
+    const heute = new Date();
+    const heuteOhneZeit = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate());
+    const e = new Date(erinnerungIso);
+    const eOhneZeit = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+    const diffTage = Math.round((eOhneZeit - heuteOhneZeit) / 86400000);
+    const datumText = String(e.getDate()).padStart(2,'0') + '.' + String(e.getMonth()+1).padStart(2,'0') + '.' + e.getFullYear();
+    if (diffTage < 0) return { text: `⏰ Überfällig seit ${-diffTage} Tag${-diffTage === 1 ? '' : 'en'}`, farbe: 'var(--red)' };
+    if (diffTage === 0) return { text: '⏰ Heute fällig', farbe: 'var(--red)' };
+    if (diffTage <= 7) return { text: `⏰ Fällig in ${diffTage} Tag${diffTage === 1 ? '' : 'en'}`, farbe: 'var(--orange)' };
+    return { text: `⏰ Fällig am ${datumText}`, farbe: 'var(--blue)' };
   }
 
   function dokIcon(name) {
@@ -835,6 +866,7 @@
           <option value="datum_alt"${window._notizSort === 'datum_alt' ? ' selected' : ''}>Datum, älteste zuerst</option>
           <option value="bewertung"${window._notizSort === 'bewertung' ? ' selected' : ''}>Bewertung (NOK zuerst)</option>
           <option value="benennung"${window._notizSort === 'benennung' ? ' selected' : ''}>Benennung A-Z</option>
+          <option value="faelligkeit"${window._notizSort === 'faelligkeit' ? ' selected' : ''}>Nächste Fälligkeit zuerst</option>
         </select>
       </div>
       ${window._notizSuche ? `<div class="notiz-search-info">${notizen.length} von ${notizenAlle.length} Notizen gefunden</div>` : ''}
@@ -872,6 +904,10 @@
               ${(n.zyklenzahl || n.messwert) ? `<div class="notiz-row">🔁 Zyklenzahl: ${n.zyklenzahl || n.messwert}</div>` : ''}
               ${n.bemerkung ? `<div class="notiz-bem">${n.bemerkung}</div>` : ''}
             </div>` : ''}
+            ${n.erinnerung ? (() => {
+              const e = erinnerungAnzeige(n.erinnerung);
+              return `<span class="erinnerung-chip" style="color:${e.farbe}">${e.text}</span>`;
+            })() : ''}
             ${(n.fotos||[]).filter(f => f.url).length > 0 ? `
             <div class="notiz-fotos">
               ${(n.fotos||[]).filter(f => f.url).map(f => `
@@ -999,6 +1035,7 @@
     document.getElementById('notizBenennung').value = '';
     document.getElementById('notizZyklenzahl').value = '';
     document.getElementById('notizBemerkung').value = '';
+    document.getElementById('notizErinnerung').value = '';
     setBewertung('ok');
     renderNotizFotoGrid();
     resetAufnahmeUI();
@@ -1030,6 +1067,7 @@
     document.getElementById('notizBenennung').value = n.benennung || n.messpunkt || '';
     document.getElementById('notizZyklenzahl').value = n.zyklenzahl || n.messwert || '';
     document.getElementById('notizBemerkung').value = n.bemerkung || '';
+    document.getElementById('notizErinnerung').value = n.erinnerung ? n.erinnerung.slice(0, 10) : '';
     setBewertung(bStr);
     renderNotizFotoGrid();
     resetAufnahmeUI();
@@ -1053,7 +1091,8 @@
       bemerkung: document.getElementById('notizBemerkung').value.trim(),
       bewertung: bew,
       fotos: window._aktFotos,
-      sprachnotizen: window._aktSprachnotizen
+      sprachnotizen: window._aktSprachnotizen,
+      erinnerung: document.getElementById('notizErinnerung').value ? new Date(document.getElementById('notizErinnerung').value + 'T00:00:00').toISOString() : null
     };
     if (!a.notizen || !Array.isArray(a.notizen)) a.notizen = [];
     if (window._aktNotizId) {
