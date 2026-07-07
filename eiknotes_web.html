@@ -106,6 +106,16 @@
     font-size: 12px; color: var(--red); cursor: pointer; }
   .sprach-menu-list button:hover { background: var(--bg); }
 
+  .video-item, .dok-item { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; }
+  .video-item video { flex: 1; height: 140px; min-width: 0; background: black; border-radius: 6px; }
+  .dok-item .dok-name { flex: 1; font-size: 12px; color: var(--text); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .notiz-video-row { display: flex; flex-wrap: wrap; gap: 8px; padding-left: 14px; border-left: 1px solid rgba(0,0,0,0.08); margin-top: 6px; }
+  .notiz-video-row video { height: 160px; border-radius: 8px; background: black; }
+  .notiz-dok-row { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 14px; margin-top: 6px; }
+  .notiz-dok-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 4px 8px; font-size: 11px; color: var(--text); text-decoration: none; }
+
   .dokumente-leiste { display: flex; align-items: center; gap: 10px; background: white; border: 1px solid var(--border);
     border-radius: 10px; padding: 8px 12px; margin-bottom: 16px; }
   .dokumente-chips { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; }
@@ -359,6 +369,18 @@
         </span>
       </div>
       <div id="notizSprachListe"></div>
+
+      <div class="sec-label">Videos</div>
+      <input type="file" id="notizVideoInput" accept="video/*" multiple style="display:none">
+      <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:10px"
+        onclick="document.getElementById('notizVideoInput').click()">🎬 Video hinzufügen</button>
+      <div id="notizVideoListe"></div>
+
+      <div class="sec-label">Dokumente</div>
+      <input type="file" id="notizDokInput" style="display:none">
+      <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:10px"
+        onclick="document.getElementById('notizDokInput').click()">📎 Dokument hinzufügen</button>
+      <div id="notizDokListe"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" style="color:var(--text);background:var(--bg);border:1px solid var(--border)" onclick="closeModal('modalNotiz')">Abbrechen</button>
@@ -490,6 +512,9 @@
         for (const s of (n.sprachnotizen || [])) {
           if (urls[s.id] && s.url !== urls[s.id]) s.url = urls[s.id];
         }
+        for (const v of (n.videos || [])) {
+          if (urls[v.id] && v.url !== urls[v.id]) v.url = urls[v.id];
+        }
       }
     }
   };
@@ -589,6 +614,8 @@
   window._aktBewertung = 'ok';
   window._aktFotos = [];       // Fotos der gerade im Modal bearbeiteten Messnotiz
   window._aktSprachnotizen = []; // Sprachnotizen der gerade im Modal bearbeiteten Messnotiz
+  window._aktVideos = [];      // Videos der gerade im Modal bearbeiteten Messnotiz
+  window._aktNotizDokumente = []; // Dokumente (PDF/Word/...) der gerade im Modal bearbeiteten Messnotiz
   window._aktAnlageIdFuerUpload = null; // anlageId zum Zeitpunkt des Öffnens des Modals
   window._anlagenSuche = '';   // Suchtext für die Anlagen-Liste (Sidebar)
   window._notizSuche = '';     // Suchtext für die Messnotizen-Liste (Hauptbereich)
@@ -728,6 +755,8 @@
   }
   document.getElementById('anlageMonat').value = now.getMonth() + 1;
   document.getElementById('notizFotoInput').addEventListener('change', handleNotizFotoUpload);
+  document.getElementById('notizVideoInput').addEventListener('change', handleNotizVideoUpload);
+  document.getElementById('notizDokInput').addEventListener('change', handleNotizDokUpload);
   document.getElementById('notizFotoErsetzenInput').addEventListener('change', handleNotizFotoErsetzen);
 
   function setStatus(msg, ok = null) {
@@ -940,6 +969,14 @@
             <div class="notiz-sprach-row">
               ${(n.sprachnotizen||[]).filter(s => s.url).map(s => `<audio controls src="${s.url}"></audio>`).join('')}
             </div>` : ''}
+            ${(n.videos||[]).filter(v => v.url).length > 0 ? `
+            <div class="notiz-video-row">
+              ${(n.videos||[]).filter(v => v.url).map(v => `<video controls src="${v.url}"></video>`).join('')}
+            </div>` : ''}
+            ${(n.dokumente||[]).filter(d => d.url).length > 0 ? `
+            <div class="notiz-dok-row">
+              ${(n.dokumente||[]).filter(d => d.url).map(d => `<a class="notiz-dok-chip" href="${d.url}" target="_blank" rel="noopener">${dokIcon(d.name)} ${d.name}</a>`).join('')}
+            </div>` : ''}
             <div class="notiz-actions">
               <button class="btn-sm btn-sm-blue" onclick="window.notizBearbeiten('${n.id}')">✏ Bearbeiten</button>
               <button class="btn-sm btn-sm-red" onclick="window.notizLoeschen('${n.id}')">Löschen</button>
@@ -1046,6 +1083,8 @@
     window._aktBewertung = 'ok';
     window._aktFotos = [];
     window._aktSprachnotizen = [];
+    window._aktVideos = [];
+    window._aktNotizDokumente = [];
     window._aktAnlageIdFuerUpload = window._aktAnlageId;
     // Feste, temporäre Notiz-ID schon jetzt vergeben, damit Fotos vor dem
     // ersten "Speichern" schon zu einem stabilen Storage-Pfad hochgeladen
@@ -1060,6 +1099,8 @@
     renderNotizFotoGrid();
     resetAufnahmeUI();
     renderNotizSprachListe();
+    renderNotizVideoListe();
+    renderNotizDokListe();
     openModal('modalNotiz');
     setTimeout(() => document.getElementById('notizBenennung').focus(), 100);
   }
@@ -1080,6 +1121,8 @@
     // dasselbe Objekt.
     window._aktFotos = n.fotos || [];
     window._aktSprachnotizen = n.sprachnotizen || [];
+    window._aktVideos = n.videos || [];
+    window._aktNotizDokumente = n.dokumente || [];
     const bMap = [null, 'ok', 'warn', 'nok'];
     const bStr = n.bewertung === 0 ? 'ok' : n.bewertung === 1 ? 'warn' : 'nok';
     window._aktBewertung = bStr;
@@ -1092,6 +1135,8 @@
     renderNotizFotoGrid();
     resetAufnahmeUI();
     renderNotizSprachListe();
+    renderNotizVideoListe();
+    renderNotizDokListe();
     openModal('modalNotiz');
   };
 
@@ -1112,6 +1157,8 @@
       bewertung: bew,
       fotos: window._aktFotos,
       sprachnotizen: window._aktSprachnotizen,
+      videos: window._aktVideos,
+      dokumente: window._aktNotizDokumente,
       erinnerung: document.getElementById('notizErinnerung').value ? new Date(document.getElementById('notizErinnerung').value + 'T00:00:00').toISOString() : null
     };
     if (!a.notizen || !Array.isArray(a.notizen)) a.notizen = [];
@@ -1316,6 +1363,113 @@
     if (!confirm('Sprachnotiz löschen?')) return;
     window._aktSprachnotizen = window._aktSprachnotizen.filter(s => s.id !== id);
     renderNotizSprachListe();
+  };
+
+  // ── Videos im Messnotiz-Modal ─────────────────────────────────────────
+  function renderNotizVideoListe() {
+    const el = document.getElementById('notizVideoListe');
+    if (!el) return;
+    el.innerHTML = window._aktVideos.map(v => `
+      <div class="video-item" data-video-id="${v.id}">
+        ${v.url ? `<video controls src="${v.url}"></video>` : `<span style="font-size:12px;color:var(--muted);flex:1">Hochladen…</span>`}
+        <details class="sprach-menu">
+          <summary>⋮</summary>
+          <div class="sprach-menu-list">
+            <button onclick="window.videoLoeschen('${v.id}')">🗑 Löschen</button>
+          </div>
+        </details>
+      </div>`).join('') || '<div style="font-size:12px;color:var(--muted)">Noch keine Videos</div>';
+  }
+  window.renderNotizVideoListe = renderNotizVideoListe;
+
+  async function handleNotizVideoUpload(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (files.length === 0) return;
+    const anlageId = window._aktAnlageIdFuerUpload;
+    const notizId = window._aktNotizIdFuerUpload;
+    if (!anlageId || !notizId) { alert('Bitte zuerst eine Messnotiz öffnen/anlegen'); return; }
+    for (const file of files) {
+      const videoId = uuid();
+      window._aktVideos.push({ id: videoId, url: null });
+      renderNotizVideoListe();
+      try {
+        const sRef = window._storageRef(window._storage, `eiknotes/${anlageId}/${notizId}/video_${uuid()}.mp4`);
+        await window._uploadBytes(sRef, file);
+        const url = await window._getDownloadURL(sRef);
+        const i = window._aktVideos.findIndex(x => x.id === videoId);
+        if (i >= 0) window._aktVideos[i].url = url;
+        try { await window._set(window._ref(window._db, `eiknotes/foto_urls/${videoId}`), url); } catch (_) {}
+        renderNotizVideoListe();
+      } catch (e) {
+        console.error('Video-Upload fehlgeschlagen:', e);
+        window._aktVideos = window._aktVideos.filter(x => x.id !== videoId);
+        renderNotizVideoListe();
+        alert('Video-Upload fehlgeschlagen: ' + e.message);
+      }
+    }
+  }
+
+  window.videoLoeschen = function(id) {
+    if (!confirm('Video löschen?')) return;
+    window._aktVideos = window._aktVideos.filter(v => v.id !== id);
+    renderNotizVideoListe();
+  };
+
+  // ── Dokumente im Messnotiz-Modal ──────────────────────────────────────
+  function renderNotizDokListe() {
+    const el = document.getElementById('notizDokListe');
+    if (!el) return;
+    el.innerHTML = window._aktNotizDokumente.map(d => `
+      <div class="dok-item" data-dok-id="${d.id}">
+        <span>${dokIcon(d.name)}</span>
+        <span class="dok-name" onclick="window.notizDokumentOeffnen('${d.id}')">${d.name}</span>
+        ${d.url === null ? `<span style="font-size:11px;color:var(--muted)">Hochladen…</span>` : ''}
+        <details class="sprach-menu">
+          <summary>⋮</summary>
+          <div class="sprach-menu-list">
+            <button onclick="window.notizDokumentLoeschen('${d.id}')">🗑 Löschen</button>
+          </div>
+        </details>
+      </div>`).join('') || '<div style="font-size:12px;color:var(--muted)">Noch keine Dokumente</div>';
+  }
+  window.renderNotizDokListe = renderNotizDokListe;
+
+  async function handleNotizDokUpload(event) {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    const anlageId = window._aktAnlageIdFuerUpload;
+    const notizId = window._aktNotizIdFuerUpload;
+    if (!anlageId || !notizId) { alert('Bitte zuerst eine Messnotiz öffnen/anlegen'); return; }
+    const dokId = uuid();
+    window._aktNotizDokumente.push({ id: dokId, name: file.name, url: null });
+    renderNotizDokListe();
+    try {
+      const sRef = window._storageRef(window._storage, `eiknotes/${anlageId}/${notizId}/dok_${uuid()}_${file.name}`);
+      await window._uploadBytes(sRef, file);
+      const url = await window._getDownloadURL(sRef);
+      const i = window._aktNotizDokumente.findIndex(x => x.id === dokId);
+      if (i >= 0) window._aktNotizDokumente[i].url = url;
+      renderNotizDokListe();
+    } catch (e) {
+      console.error('Dokument-Upload fehlgeschlagen:', e);
+      window._aktNotizDokumente = window._aktNotizDokumente.filter(x => x.id !== dokId);
+      renderNotizDokListe();
+      alert('Dokument-Upload fehlgeschlagen: ' + e.message);
+    }
+  }
+
+  window.notizDokumentOeffnen = function(id) {
+    const d = window._aktNotizDokumente.find(x => x.id === id);
+    if (!d || !d.url) { alert('Dokument wird noch hochgeladen…'); return; }
+    window.open(d.url, '_blank');
+  };
+
+  window.notizDokumentLoeschen = function(id) {
+    if (!confirm('Dokument löschen?')) return;
+    window._aktNotizDokumente = window._aktNotizDokumente.filter(d => d.id !== id);
+    renderNotizDokListe();
   };
 
   // ── Foto extern bearbeiten (Snagit, Paint, GIMP, o.ä.) und zurückspielen ──
