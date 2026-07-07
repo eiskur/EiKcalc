@@ -327,10 +327,43 @@
         <label>Benennung</label>
         <input id="notizBenennung" type="text" placeholder="z.B. Antriebslager links">
       </div>
+      <div class="sec-label">Bemerkung</div>
       <div class="field-group">
-        <label>Zyklenzahl</label>
-        <input id="notizZyklenzahl" type="text" placeholder="0">
+        <textarea id="notizBemerkung" rows="4" placeholder="Notizen, Beobachtungen…"></textarea>
       </div>
+      <div class="sec-label">Erinnerung</div>
+      <div class="field-group" style="display:flex;align-items:center;gap:8px">
+        <input id="notizErinnerung" type="date" style="flex:1">
+        <span class="such-clear zeigen" style="position:static" title="Erinnerung entfernen" onclick="document.getElementById('notizErinnerung').value=''">✕</span>
+      </div>
+      <div class="sec-label">Sprachnotizen</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <button class="sprach-rec-btn" id="sprachAufnahmeBtn" onclick="window.sprachAufnahmeToggle()">🎙️ Aufnahme starten</button>
+        <span id="sprachAufnahmeTimer" style="display:none;align-items:center;gap:6px;color:var(--red);font-size:12px;font-weight:700">
+          <span class="sprach-rec-dot"></span><span id="sprachAufnahmeZeit">00:00</span>
+        </span>
+      </div>
+      <div id="notizSprachListe"></div>
+
+      <div class="sec-label">Fotos</div>
+      <input type="file" id="notizFotoInput" accept="image/*" multiple style="display:none">
+      <input type="file" id="notizFotoErsetzenInput" accept="image/*" style="display:none">
+      <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:10px"
+        onclick="document.getElementById('notizFotoInput').click()">📷 Foto hinzufügen</button>
+      <div id="notizFotoGrid" class="notiz-foto-grid"></div>
+
+      <div class="sec-label">Videos</div>
+      <input type="file" id="notizVideoInput" accept="video/*" multiple style="display:none">
+      <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:10px"
+        onclick="document.getElementById('notizVideoInput').click()">🎬 Video hinzufügen</button>
+      <div id="notizVideoListe" class="notiz-foto-grid"></div>
+
+      <div class="sec-label">Dokumente</div>
+      <input type="file" id="notizDokInput" style="display:none">
+      <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:10px"
+        onclick="document.getElementById('notizDokInput').click()">📎 Dokument hinzufügen</button>
+      <div id="notizDokListe"></div>
+
       <div class="sec-label">Bewertung</div>
       <div class="bewertung-btns">
         <div class="bew-btn active-ok" id="bew-ok" onclick="setBewertung('ok')">
@@ -346,42 +379,10 @@
           <div class="bew-label" style="color:var(--red)">Nicht OK</div>
         </div>
       </div>
-      <div class="sec-label">Bemerkung</div>
+      <div class="sec-label">Zyklenzahl</div>
       <div class="field-group">
-        <textarea id="notizBemerkung" rows="4" placeholder="Notizen, Beobachtungen…"></textarea>
+        <input id="notizZyklenzahl" type="text" placeholder="0">
       </div>
-      <div class="sec-label">Erinnerung</div>
-      <div class="field-group" style="display:flex;align-items:center;gap:8px">
-        <input id="notizErinnerung" type="date" style="flex:1">
-        <span class="such-clear zeigen" style="position:static" title="Erinnerung entfernen" onclick="document.getElementById('notizErinnerung').value=''">✕</span>
-      </div>
-      <div class="sec-label">Fotos</div>
-      <input type="file" id="notizFotoInput" accept="image/*" multiple style="display:none">
-      <input type="file" id="notizFotoErsetzenInput" accept="image/*" style="display:none">
-      <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:10px"
-        onclick="document.getElementById('notizFotoInput').click()">📷 Foto hinzufügen</button>
-      <div id="notizFotoGrid" class="notiz-foto-grid"></div>
-
-      <div class="sec-label">Sprachnotizen</div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <button class="sprach-rec-btn" id="sprachAufnahmeBtn" onclick="window.sprachAufnahmeToggle()">🎙️ Aufnahme starten</button>
-        <span id="sprachAufnahmeTimer" style="display:none;align-items:center;gap:6px;color:var(--red);font-size:12px;font-weight:700">
-          <span class="sprach-rec-dot"></span><span id="sprachAufnahmeZeit">00:00</span>
-        </span>
-      </div>
-      <div id="notizSprachListe"></div>
-
-      <div class="sec-label">Videos</div>
-      <input type="file" id="notizVideoInput" accept="video/*" multiple style="display:none">
-      <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:10px"
-        onclick="document.getElementById('notizVideoInput').click()">🎬 Video hinzufügen</button>
-      <div id="notizVideoListe" class="notiz-foto-grid"></div>
-
-      <div class="sec-label">Dokumente</div>
-      <input type="file" id="notizDokInput" style="display:none">
-      <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:10px"
-        onclick="document.getElementById('notizDokInput').click()">📎 Dokument hinzufügen</button>
-      <div id="notizDokListe"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" style="color:var(--text);background:var(--bg);border:1px solid var(--border)" onclick="closeModal('modalNotiz')">Abbrechen</button>
@@ -957,15 +958,18 @@
                 <div class="notiz-date">${formatDatum(n.datum)}</div>
               </div>
             </div>
-            ${((n.zyklenzahl || n.messwert) || n.bemerkung) ? `
+            ${n.bemerkung ? `
             <div class="notiz-meta">
-              ${(n.zyklenzahl || n.messwert) ? `<div class="notiz-row">🔁 Zyklenzahl: ${n.zyklenzahl || n.messwert}</div>` : ''}
-              ${n.bemerkung ? `<div class="notiz-bem">${n.bemerkung}</div>` : ''}
+              <div class="notiz-bem">${n.bemerkung}</div>
             </div>` : ''}
             ${n.erinnerung ? (() => {
               const e = erinnerungAnzeige(n.erinnerung);
               return `<span class="erinnerung-chip" style="color:${e.farbe}">${e.text}</span>`;
             })() : ''}
+            ${(n.sprachnotizen||[]).filter(s => s.url).length > 0 ? `
+            <div class="notiz-sprach-row">
+              ${(n.sprachnotizen||[]).filter(s => s.url).map(s => `<audio controls src="${s.url}"></audio>`).join('')}
+            </div>` : ''}
             ${((n.fotos||[]).filter(f => f.url).length > 0 || (n.videos||[]).filter(v => v.url).length > 0) ? `
             <div class="notiz-fotos">
               ${(n.fotos||[]).filter(f => f.url).map(f => `
@@ -979,14 +983,11 @@
                   <span class="video-play-overlay">▶</span>
                 </div>`).join('')}
             </div>` : ''}
-            ${(n.sprachnotizen||[]).filter(s => s.url).length > 0 ? `
-            <div class="notiz-sprach-row">
-              ${(n.sprachnotizen||[]).filter(s => s.url).map(s => `<audio controls src="${s.url}"></audio>`).join('')}
-            </div>` : ''}
             ${(n.dokumente||[]).filter(d => d.url).length > 0 ? `
             <div class="notiz-dok-row">
               ${(n.dokumente||[]).filter(d => d.url).map(d => `<a class="notiz-dok-chip" href="${d.url}" target="_blank" rel="noopener">${dokIcon(d.name)} ${d.name}</a>`).join('')}
             </div>` : ''}
+            ${(n.zyklenzahl || n.messwert) ? `<div class="notiz-row">🔁 Zyklenzahl: ${n.zyklenzahl || n.messwert}</div>` : ''}
             <div class="notiz-actions">
               <button class="btn-sm btn-sm-blue" onclick="window.notizBearbeiten('${n.id}')">✏ Bearbeiten</button>
               <button class="btn-sm btn-sm-red" onclick="window.notizLoeschen('${n.id}')">Löschen</button>
