@@ -106,12 +106,13 @@
     font-size: 12px; color: var(--red); cursor: pointer; }
   .sprach-menu-list button:hover { background: var(--bg); }
 
-  .video-item, .dok-item { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border);
+  .dok-item { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border);
     border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; }
-  .video-item video { flex: 1; height: 140px; min-width: 0; background: black; border-radius: 6px; }
+  .video-play-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.6); pointer-events: none; }
+  .klein-x-btn { background: rgba(0,0,0,0.55); border: none; color: white; border-radius: 50%; width: 20px; height: 20px;
+    font-size: 12px; line-height: 1; cursor: pointer; flex-shrink: 0; }
   .dok-item .dok-name { flex: 1; font-size: 12px; color: var(--text); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .notiz-video-row { display: flex; flex-wrap: wrap; gap: 8px; padding-left: 14px; border-left: 1px solid rgba(0,0,0,0.08); margin-top: 6px; }
-  .notiz-video-row video { height: 160px; border-radius: 8px; background: black; }
   .notiz-dok-row { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 14px; margin-top: 6px; }
   .notiz-dok-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--bg); border: 1px solid var(--border);
     border-radius: 8px; padding: 4px 8px; font-size: 11px; color: var(--text); text-decoration: none; }
@@ -128,12 +129,12 @@
     border-radius: 50%; display: inline-block; animation: dokspin 0.8s linear infinite; }
   @keyframes dokspin { to { transform: rotate(360deg); } }
 
-  .notiz-card { background: white; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 12px; overflow: hidden;
+  .notiz-card { background: white; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px; overflow: hidden;
     box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
   .notiz-card.ok    { background: rgba(39,160,96,0.08); border-color: rgba(39,160,96,0.25); }
   .notiz-card.warn  { background: rgba(224,112,32,0.08); border-color: rgba(224,112,32,0.25); }
   .notiz-card.nok   { background: rgba(217,64,64,0.08); border-color: rgba(217,64,64,0.25); }
-  .notiz-row-flex { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding: 12px 16px; }
+  .notiz-row-flex { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding: 10px 16px; }
   .notiz-info { display: flex; align-items: center; gap: 10px; }
   .notiz-title { font-weight: 700; font-size: 14px; }
   .notiz-date { font-size: 10px; color: var(--muted); }
@@ -374,7 +375,7 @@
       <input type="file" id="notizVideoInput" accept="video/*" multiple style="display:none">
       <button class="btn btn-outline" style="color:var(--blue);border-color:var(--blue);background:white;margin-bottom:10px"
         onclick="document.getElementById('notizVideoInput').click()">🎬 Video hinzufügen</button>
-      <div id="notizVideoListe"></div>
+      <div id="notizVideoListe" class="notiz-foto-grid"></div>
 
       <div class="sec-label">Dokumente</div>
       <input type="file" id="notizDokInput" style="display:none">
@@ -422,6 +423,14 @@
       <span style="font-size:11px;color:#ccc;margin-right:auto">Zum Platzieren aufs Foto klicken · Ziehpunkte zum Verschieben/Anpassen</span>
       <button class="btn-sm btn-sm-blue" onclick="window.lightboxSpeichern()">Speichern</button>
     </div>
+  </div>
+</div>
+
+<div class="lightbox-bg" id="videoLightbox" onclick="window.videoSchliessen()">
+  <div class="lightbox-inner" onclick="event.stopPropagation()">
+    <video id="videoLightboxPlayer" src="" controls autoplay style="max-width:92vw;max-height:92vh;border-radius:8px;display:block;background:black"></video>
+    <button title="Schließen" onclick="window.videoSchliessen()"
+      style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.55);border:none;color:white;border-radius:8px;padding:8px 12px;font-size:15px;cursor:pointer;line-height:1;">✕</button>
   </div>
 </div>
 
@@ -957,21 +966,22 @@
               const e = erinnerungAnzeige(n.erinnerung);
               return `<span class="erinnerung-chip" style="color:${e.farbe}">${e.text}</span>`;
             })() : ''}
-            ${(n.fotos||[]).filter(f => f.url).length > 0 ? `
+            ${((n.fotos||[]).filter(f => f.url).length > 0 || (n.videos||[]).filter(v => v.url).length > 0) ? `
             <div class="notiz-fotos">
               ${(n.fotos||[]).filter(f => f.url).map(f => `
                 <div class="foto-thumb-wrap">
                   <img src="${f.url}" class="foto-thumb" onclick="window.fotoAnzeigen('${f.id}')" loading="lazy">
                   ${(f.annotationen||[]).length > 0 ? `<span class="foto-annot-badge">${f.annotationen.length}</span>` : ''}
                 </div>`).join('')}
+              ${(n.videos||[]).filter(v => v.url).map(v => `
+                <div class="foto-thumb-wrap" style="cursor:pointer" onclick="window.videoAnzeigen('${v.url}')">
+                  <video src="${v.url}#t=0.1" class="foto-thumb" muted preload="metadata"></video>
+                  <span class="video-play-overlay">▶</span>
+                </div>`).join('')}
             </div>` : ''}
             ${(n.sprachnotizen||[]).filter(s => s.url).length > 0 ? `
             <div class="notiz-sprach-row">
               ${(n.sprachnotizen||[]).filter(s => s.url).map(s => `<audio controls src="${s.url}"></audio>`).join('')}
-            </div>` : ''}
-            ${(n.videos||[]).filter(v => v.url).length > 0 ? `
-            <div class="notiz-video-row">
-              ${(n.videos||[]).filter(v => v.url).map(v => `<video controls src="${v.url}"></video>`).join('')}
             </div>` : ''}
             ${(n.dokumente||[]).filter(d => d.url).length > 0 ? `
             <div class="notiz-dok-row">
@@ -1281,12 +1291,7 @@
         <span>🎤</span>
         ${s.url ? `<audio controls src="${s.url}"></audio>` : `<span style="font-size:12px;color:var(--muted);flex:1">Hochladen…</span>`}
         <span class="sprachnotiz-dauer">${formatDauer(s.dauerSekunden || 0)}</span>
-        <details class="sprach-menu">
-          <summary>⋮</summary>
-          <div class="sprach-menu-list">
-            <button onclick="window.sprachnotizLoeschen('${s.id}')">🗑 Löschen</button>
-          </div>
-        </details>
+        <button class="klein-x-btn" title="Sprachnotiz löschen" onclick="window.sprachnotizLoeschen('${s.id}')">✕</button>
       </div>`).join('') || '<div style="font-size:12px;color:var(--muted)">Noch keine Sprachnotizen</div>';
   }
   window.renderNotizSprachListe = renderNotizSprachListe;
@@ -1370,15 +1375,13 @@
     const el = document.getElementById('notizVideoListe');
     if (!el) return;
     el.innerHTML = window._aktVideos.map(v => `
-      <div class="video-item" data-video-id="${v.id}">
-        ${v.url ? `<video controls src="${v.url}"></video>` : `<span style="font-size:12px;color:var(--muted);flex:1">Hochladen…</span>`}
-        <details class="sprach-menu">
-          <summary>⋮</summary>
-          <div class="sprach-menu-list">
-            <button onclick="window.videoLoeschen('${v.id}')">🗑 Löschen</button>
-          </div>
-        </details>
-      </div>`).join('') || '<div style="font-size:12px;color:var(--muted)">Noch keine Videos</div>';
+      <div class="notiz-foto-item" data-video-id="${v.id}">
+        ${v.url
+          ? `<video src="${v.url}#t=0.1" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="window.videoAnzeigen('${v.url}')"></video>
+             <span class="video-play-overlay">▶</span>`
+          : `<div class="foto-uploading">Hochladen…</div>`}
+        <button class="foto-del-btn" title="Video löschen" onclick="window.videoLoeschen('${v.id}')">✕</button>
+      </div>`).join('') || '<div style="font-size:12px;color:var(--muted);grid-column:1/-1">Noch keine Videos</div>';
   }
   window.renderNotizVideoListe = renderNotizVideoListe;
 
@@ -1414,6 +1417,22 @@
     if (!confirm('Video löschen?')) return;
     window._aktVideos = window._aktVideos.filter(v => v.id !== id);
     renderNotizVideoListe();
+  };
+
+  // Einfache Vollbild-Wiedergabe für Videos (Klick auf Thumbnail) - bewusst
+  // ohne die Annotations-Werkzeuge der Foto-Lightbox, da hier nur Abspielen
+  // gebraucht wird.
+  window.videoAnzeigen = function(url) {
+    const player = document.getElementById('videoLightboxPlayer');
+    player.src = url;
+    document.getElementById('videoLightbox').classList.add('open');
+  };
+
+  window.videoSchliessen = function() {
+    const player = document.getElementById('videoLightboxPlayer');
+    player.pause();
+    player.src = '';
+    document.getElementById('videoLightbox').classList.remove('open');
   };
 
   // ── Dokumente im Messnotiz-Modal ──────────────────────────────────────
