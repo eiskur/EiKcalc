@@ -134,6 +134,7 @@
   .notiz-card.ok    { background: rgba(39,160,96,0.08); border-color: rgba(39,160,96,0.25); }
   .notiz-card.warn  { background: rgba(224,112,32,0.08); border-color: rgba(224,112,32,0.25); }
   .notiz-card.nok   { background: rgba(217,64,64,0.08); border-color: rgba(217,64,64,0.25); }
+  .notiz-card.offen { background: white; border-color: var(--border); }
   .notiz-row-flex { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding: 10px 16px; }
   .notiz-info { display: flex; align-items: center; gap: 10px; }
   .notiz-title { font-weight: 700; font-size: 14px; }
@@ -366,15 +367,15 @@
 
       <div class="sec-label">Bewertung</div>
       <div class="bewertung-btns">
-        <div class="bew-btn active-ok" id="bew-ok" onclick="setBewertung('ok')">
+        <div class="bew-btn" id="bew-ok" onclick="toggleBewertung('ok')">
           <div class="bew-icon">✅</div>
           <div class="bew-label" style="color:var(--green)">OK</div>
         </div>
-        <div class="bew-btn" id="bew-warn" onclick="setBewertung('warn')">
+        <div class="bew-btn" id="bew-warn" onclick="toggleBewertung('warn')">
           <div class="bew-icon">⚠️</div>
           <div class="bew-label" style="color:var(--orange)">Warnung</div>
         </div>
-        <div class="bew-btn" id="bew-nok" onclick="setBewertung('nok')">
+        <div class="bew-btn" id="bew-nok" onclick="toggleBewertung('nok')">
           <div class="bew-icon">❌</div>
           <div class="bew-label" style="color:var(--red)">Nicht OK</div>
         </div>
@@ -621,7 +622,7 @@
   window._anlagen = [];
   window._aktAnlageId = null;
   window._aktNotizId = null;
-  window._aktBewertung = 'ok';
+  window._aktBewertung = 'offen';
   window._aktFotos = [];       // Fotos der gerade im Modal bearbeiteten Messnotiz
   window._aktSprachnotizen = []; // Sprachnotizen der gerade im Modal bearbeiteten Messnotiz
   window._aktVideos = [];      // Videos der gerade im Modal bearbeiteten Messnotiz
@@ -698,8 +699,10 @@
     if (modus === 'datum_alt') {
       kopie.sort((a, b) => new Date(a.datum) - new Date(b.datum));
     } else if (modus === 'bewertung') {
-      // NOK (2) zuerst, dann Warn (1), dann OK (0); bei Gleichstand neueste zuerst.
-      kopie.sort((a, b) => (b.bewertung - a.bewertung) || (new Date(b.datum) - new Date(a.datum)));
+      // NOK (2) zuerst, dann Warn (1), dann OK (0), Offen (3) immer zuletzt;
+      // bei Gleichstand neueste zuerst.
+      const rang = (b) => b === 3 ? -1 : b;
+      kopie.sort((a, b) => (rang(b.bewertung) - rang(a.bewertung)) || (new Date(b.datum) - new Date(a.datum)));
     } else if (modus === 'benennung') {
       kopie.sort((a, b) => (a.benennung || a.messpunkt || '').localeCompare(b.benennung || b.messpunkt || '', 'de'));
     } else if (modus === 'faelligkeit') {
@@ -788,13 +791,13 @@
   }
 
   function bewIcon(b) {
-    return b === 0 ? '✅' : b === 1 ? '⚠️' : '❌';
+    return b === 0 ? '✅' : b === 1 ? '⚠️' : b === 2 ? '❌' : '⬜';
   }
   function bewLabel(b) {
-    return b === 0 ? 'OK' : b === 1 ? 'Warnung' : 'Nicht OK';
+    return b === 0 ? 'OK' : b === 1 ? 'Warnung' : b === 2 ? 'Nicht OK' : 'Offen';
   }
   function bewClass(b) {
-    return b === 0 ? 'ok' : b === 1 ? 'warn' : 'nok';
+    return b === 0 ? 'ok' : b === 1 ? 'warn' : b === 2 ? 'nok' : 'offen';
   }
   // Findet die dringendste (überfällige oder nächstliegende) Erinnerung unter
   // allen Notizen einer Anlage - für die Anzeige direkt im Haupteintrag.
@@ -1087,11 +1090,16 @@
     document.getElementById('bew-warn').className = 'bew-btn' + (b==='warn' ? ' active-warn' : '');
     document.getElementById('bew-nok').className = 'bew-btn' + (b==='nok' ? ' active-nok' : '');
   }
+  // Klick auf eine bereits aktive Bewertung hebt die Auswahl wieder auf
+  // (zurück auf 'offen') - so muss nicht zwingend eine der drei gesetzt sein.
+  function toggleBewertung(b) {
+    setBewertung(window._aktBewertung === b ? 'offen' : b);
+  }
 
   function neueNotiz() {
     if (!window.getAktAnlage()) { alert('Bitte zuerst eine Anlage auswählen'); return; }
     window._aktNotizId = null;
-    window._aktBewertung = 'ok';
+    window._aktBewertung = 'offen';
     window._aktFotos = [];
     window._aktSprachnotizen = [];
     window._aktVideos = [];
@@ -1106,7 +1114,7 @@
     document.getElementById('notizZyklenzahl').value = '';
     document.getElementById('notizBemerkung').value = '';
     document.getElementById('notizErinnerung').value = '';
-    setBewertung('ok');
+    setBewertung('offen');
     renderNotizFotoGrid();
     resetAufnahmeUI();
     renderNotizSprachListe();
@@ -1134,8 +1142,7 @@
     window._aktSprachnotizen = n.sprachnotizen || [];
     window._aktVideos = n.videos || [];
     window._aktNotizDokumente = n.dokumente || [];
-    const bMap = [null, 'ok', 'warn', 'nok'];
-    const bStr = n.bewertung === 0 ? 'ok' : n.bewertung === 1 ? 'warn' : 'nok';
+    const bStr = n.bewertung === 0 ? 'ok' : n.bewertung === 1 ? 'warn' : n.bewertung === 2 ? 'nok' : 'offen';
     window._aktBewertung = bStr;
     document.getElementById('modalNotizTitel').textContent = 'Notiz bearbeiten';
     document.getElementById('notizBenennung').value = n.benennung || n.messpunkt || '';
@@ -1154,8 +1161,8 @@
   window.notizSpeichern = async function() {
     const a = window.getAktAnlage();
     if (!a) { alert('Keine Anlage ausgewählt'); return; }
-    const bewMap = { ok: 0, warn: 1, nok: 2 };
-    const bew = bewMap[window._aktBewertung] ?? 0;
+    const bewMap = { ok: 0, warn: 1, nok: 2, offen: 3 };
+    const bew = bewMap[window._aktBewertung] ?? 3;
     // 'fotos' kommt jetzt bewusst aus window._aktFotos: das ist der einzige
     // Ort, an dem Fotos für diese Notiz verwaltet werden (befüllt beim Öffnen
     // des Modals mit den bestehenden Fotos, ergänzt/reduziert durch Hinzufügen
@@ -1644,6 +1651,7 @@
   window.setBewertung = setBewertung;
   window.openModal = openModal;
   window.setBewertung = setBewertung;
+  window.toggleBewertung = toggleBewertung;
 
   // ── Foto-Vollansicht ────────────────────────────────────────────────────
   // Flutter speichert Farben als ARGB-Ganzzahl (Color.value); daraus die
