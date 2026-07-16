@@ -443,6 +443,49 @@
   import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
   import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
+  // ── Deep-Link von der Versuchsliste (?tr=TR%2001%20140820&name=...&beschreibung=...) ──
+  // Springt beim Aufruf mit einer TR-Nummer in der URL direkt zur passenden
+  // Anlage (falls schon vorhanden) oder öffnet den "Neue Anlage"-Dialog
+  // vorausgefüllt (falls noch keine existiert). Läuft nur einmal pro
+  // Seitenaufruf (window._deepLinkHandled-Flag), da der Firebase-Sync
+  // (onValue) bei jeder Datenänderung erneut feuert.
+  function normTr(s) {
+    return (s || '').toString().trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+  window._deepLinkTr = null;
+  (function() {
+    const params = new URLSearchParams(window.location.search);
+    const tr = params.get('tr');
+    if (tr && tr.trim()) {
+      window._deepLinkTr = {
+        tr: tr.trim(),
+        name: params.get('name') || '',
+        beschreibung: params.get('beschreibung') || ''
+      };
+    }
+  })();
+  window._deepLinkHandled = false;
+  window._handleDeepLink = function() {
+    if (!window._deepLinkTr || window._deepLinkHandled) return;
+    window._deepLinkHandled = true;
+    const ziel = normTr(window._deepLinkTr.tr);
+    const treffer = window._anlagen.find(a => normTr(a.trNummer) === ziel);
+    if (treffer) {
+      window._aktAnlageId = treffer.id;
+      renderAnlagen();
+      renderNotizen();
+      setStatus('✓ Von Versuchsliste geöffnet: TR-Nr. ' + window._deepLinkTr.tr, true);
+      const aktiv = document.querySelector('.anlage-item.active');
+      if (aktiv) aktiv.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    } else {
+      neueAnlage();
+      document.getElementById('anlageTrNummer').value = window._deepLinkTr.tr;
+      if (window._deepLinkTr.name) document.getElementById('anlageName').value = window._deepLinkTr.name;
+      if (window._deepLinkTr.beschreibung) document.getElementById('anlageBeschreibung').value = window._deepLinkTr.beschreibung;
+      setStatus('Keine bestehende Anlage für TR-Nr. ' + window._deepLinkTr.tr + ' gefunden – bitte anlegen', null);
+    }
+  };
+
   const firebaseConfig = {
     apiKey: 'AIzaSyC6o4DPT_ux5yTtM8Zum3odZIKAPKP4avE',
     authDomain: 'eikcalc.firebaseapp.com',
@@ -542,6 +585,7 @@
     renderAnlagen();
     if (window._aktAnlageId) renderNotizen();
     setStatus('✓ Verbunden mit Firebase', true);
+    window._handleDeepLink();
   }, (err) => {
     setStatus('Firebase Fehler: ' + err.message, false);
   });
