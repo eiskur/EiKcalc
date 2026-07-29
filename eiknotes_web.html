@@ -465,16 +465,31 @@
     }
   })();
   window._deepLinkHandled = false;
-  window._handleDeepLink = function() {
+  window._handleDeepLink = async function() {
     if (!window._deepLinkTr || window._deepLinkHandled) return;
     window._deepLinkHandled = true;
     const ziel = normTr(window._deepLinkTr.tr);
     const treffer = window._anlagen.find(a => normTr(a.trNummer) === ziel);
     if (treffer) {
       window._aktAnlageId = treffer.id;
+      // Name/Beschreibung mit dem aktuellen Stand aus der Versuchsliste
+      // abgleichen - falls sich die Benennung in Excel geändert hat, wird
+      // das hier automatisch übernommen, statt den alten Stand zu zeigen.
+      const neuerName = (window._deepLinkTr.name || '').trim();
+      const neueBeschreibung = (window._deepLinkTr.beschreibung || '').trim();
+      const hatSichGeaendert =
+        (neuerName && neuerName !== (treffer.name || '').trim()) ||
+        (neueBeschreibung && neueBeschreibung !== (treffer.beschreibung || '').trim());
+      if (hatSichGeaendert) {
+        if (neuerName) treffer.name = neuerName;
+        if (neueBeschreibung) treffer.beschreibung = neueBeschreibung;
+        await window.saveToFirebase();
+        setStatus('✓ Von Versuchsliste geöffnet und Benennung aktualisiert: TR-Nr. ' + window._deepLinkTr.tr, true);
+      } else {
+        setStatus('✓ Von Versuchsliste geöffnet: TR-Nr. ' + window._deepLinkTr.tr, true);
+      }
       renderAnlagen();
       renderNotizen();
-      setStatus('✓ Von Versuchsliste geöffnet: TR-Nr. ' + window._deepLinkTr.tr, true);
       const aktiv = document.querySelector('.anlage-item.active');
       if (aktiv) aktiv.scrollIntoView({ block: 'center', behavior: 'smooth' });
     } else {
