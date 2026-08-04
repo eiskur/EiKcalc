@@ -45,6 +45,7 @@
     background: var(--bg); padding: 0 6px; }
   .sortier-select:focus { outline: none; border-color: var(--blue); }
   .such-leer { padding: 20px 16px; text-align: center; color: var(--muted); font-size: 12px; }
+  mark { background: #FFE58A; color: inherit; border-radius: 3px; padding: 0 1px; }
 
   .anlage-item { padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
   .anlage-item:hover { background: var(--bg); }
@@ -217,6 +218,9 @@
 
   /* Status */
   .status-bar { padding: 8px 16px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); background: var(--bg); }
+  .erinnerung-banner { padding: 10px 16px; font-size: 13px; font-weight: 600; color: #7A1F0A; background: #FBE4D8;
+    border-bottom: 1px solid #F0B99A; cursor: pointer; }
+  .erinnerung-banner:hover { background: #F8D5C0; }
   .status-ok { color: var(--green); }
   .status-err { color: var(--red); }
 
@@ -236,6 +240,7 @@
 </header>
 
 <div id="statusBar" class="status-bar">Bereit</div>
+<div id="erinnerungBanner" class="erinnerung-banner" style="display:none;" onclick="erinnerungBannerKlick()"></div>
 
 <div class="container">
   <!-- Sidebar: Anlagen -->
@@ -521,7 +526,31 @@
   // (gleicher Monat/Jahr) die zeitlich zuletzt erstellte Anlage zuerst.
   // Alte Datensätze ohne 'erstellt' fallen auf einen festen alten Zeitpunkt
   // zurück, damit sie nicht fälschlich vor neu erstellten landen.
+  // Extrahiert das Datum aus einer TR-Nummer wie "TR 41 260508" -> 260508
+  // (Jahr*10000 + Monat*100 + Tag). Gibt null zurueck, wenn keine gueltige
+  // TR-Nummer mit Datum erkennbar ist.
+  function trDatumWert(a) {
+    if (!a || !a.trNummer) return null;
+    const digits = String(a.trNummer).replace(/[^0-9]/g, '');
+    if (digits.length < 6) return null;
+    const last6 = digits.slice(-6);
+    const yy = parseInt(last6.slice(0, 2), 10);
+    const mm = parseInt(last6.slice(2, 4), 10);
+    const dd = parseInt(last6.slice(4, 6), 10);
+    if (yy < 10 || yy > 35 || mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+    return yy * 10000 + mm * 100 + dd;
+  }
+  // Anlagen MIT TR-Nummer werden nach dem darin enthaltenen Datum sortiert -
+  // absteigend (neuestes zuerst), unabhaengig davon, wann die Anlage
+  // tatsaechlich angelegt wurde. Anlagen OHNE TR-Nummer fallen auf das
+  // Eintragedatum (Jahr/Monat + Erstellungszeitpunkt) zurueck. TR-Anlagen
+  // erscheinen dabei immer vor Nicht-TR-Anlagen.
   function anlagenVergleich(a, b) {
+    const ta = trDatumWert(a);
+    const tb = trDatumWert(b);
+    if (ta !== null && tb !== null) return tb - ta;
+    if (ta !== null && tb === null) return -1;
+    if (ta === null && tb !== null) return 1;
     if (a.jahr !== b.jahr) return b.jahr - a.jahr;
     if (a.monat !== b.monat) return b.monat - a.monat;
     const ae = a.erstellt ? new Date(a.erstellt).getTime() : 0;
@@ -601,6 +630,7 @@
     if (window._aktAnlageId) renderNotizen();
     setStatus('✓ Verbunden mit Firebase', true);
     window._handleDeepLink();
+    pruefeFaelligeErinnerungen();
   }, (err) => {
     setStatus('Firebase Fehler: ' + err.message, false);
   });
@@ -633,6 +663,7 @@
       setStatus('✓ Gespeichert und synchronisiert', true);
       renderAnlagen();
       if (window._aktAnlageId) renderNotizen();
+      pruefeFaelligeErinnerungen();
     } catch(e) {
       console.error('Firebase write FAILED:', e);
       setStatus('Fehler beim Speichern: ' + e.message, false);
@@ -662,6 +693,7 @@
       window._patchFotoUrls();
       renderAnlagen();
       if (window._aktAnlageId) renderNotizen();
+      pruefeFaelligeErinnerungen();
       setStatus(window._anlagen.length ? ('✓ Synchronisiert: ' + window._anlagen.length + ' Anlagen') : 'Keine Daten in Firebase', window._anlagen.length > 0);
     } catch(e) {
       setStatus('Sync Fehler: ' + e.message, false);
@@ -712,6 +744,21 @@
   }
 
   // Sucht Anlagen anhand Name, Beschreibung und Zeitraum (z.B. "03.2026").
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  // Hebt den Suchtreffer innerhalb eines Textes farblich hervor (wie in der
+  // Versuchsliste). Escaped den restlichen Text dabei mit, da die Felder
+  // sonst ungeschuetzt in innerHTML landen wuerden.
+  function highlightText(text, query) {
+    const s = String(text == null ? '' : text);
+    const q = (query || '').trim();
+    if (!q) return escHtml(s);
+    const idx = s.toLowerCase().indexOf(q.toLowerCase());
+    if (idx === -1) return escHtml(s);
+    return escHtml(s.slice(0, idx)) + '<mark>' + escHtml(s.slice(idx, idx + q.length)) + '</mark>' + escHtml(s.slice(idx + q.length));
+  }
+
   function anlagenFiltern(liste, suche) {
     const q = (suche || '').trim().toLowerCase();
     if (!q) return liste;
@@ -882,6 +929,48 @@
     return { text: `⏰ Fällig am ${datumText}`, farbe: 'var(--blue)' };
   }
 
+  // Prüft beim Öffnen/Synchronisieren, ob irgendwo fällige oder überfällige
+  // Erinnerungen stecken, und zeigt ggf. einen Hinweis-Banner oben an.
+  // Rein informativ (kein Push) - läuft nur, wenn die Seite gerade offen ist.
+  function pruefeFaelligeErinnerungen() {
+    const heute = new Date();
+    const heuteOhneZeit = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate());
+    const faellige = [];
+    (window._anlagen || []).forEach(a => {
+      (a.notizen || []).forEach(n => {
+        if (!n.erinnerung) return;
+        const e = new Date(n.erinnerung);
+        const eOhneZeit = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+        if (eOhneZeit <= heuteOhneZeit) faellige.push({ anlage: a, notiz: n, eOhneZeit });
+      });
+    });
+    const banner = document.getElementById('erinnerungBanner');
+    if (faellige.length === 0) {
+      banner.style.display = 'none';
+      window._faelligeErinnerungen = [];
+      return;
+    }
+    faellige.sort((x, y) => x.eOhneZeit - y.eOhneZeit);
+    const ueberfaellig = faellige.filter(f => f.eOhneZeit < heuteOhneZeit).length;
+    const heuteFaellig = faellige.length - ueberfaellig;
+    const teile = [];
+    if (ueberfaellig > 0) teile.push(`${ueberfaellig} überfällig`);
+    if (heuteFaellig > 0) teile.push(`${heuteFaellig} heute fällig`);
+    banner.textContent = `⏰ ${faellige.length} Erinnerung${faellige.length === 1 ? '' : 'en'} fällig (${teile.join(', ')}) – antippen zum Anzeigen`;
+    banner.style.display = 'block';
+    window._faelligeErinnerungen = faellige;
+  }
+
+  // Klick auf den Banner springt zur dringendsten fälligen Anlage/Notiz.
+  function erinnerungBannerKlick() {
+    const liste = window._faelligeErinnerungen || [];
+    if (liste.length === 0) return;
+    const ziel = liste[0].anlage;
+    window._aktAnlageId = ziel.id;
+    renderAnlagen();
+    renderNotizen();
+  }
+
   function dokIcon(name) {
     const ext = (name || '').toLowerCase().split('.').pop();
     if (ext === 'pdf') return '📕';
@@ -924,14 +1013,14 @@
       div.className = 'anlage-item' + (window._aktAnlageId === a.id ? ' active' : '');
       div.style.position = 'relative';
       div.innerHTML = `
-        <div class="anlage-name" style="padding-right:50px">${a.name}</div>
-        ${a.trNummer ? `<div style="font-size:11px;color:var(--blue);font-weight:600;margin-top:3px">TR-Nr.: ${a.trNummer}</div>` : ''}
+        <div class="anlage-name" style="padding-right:50px">${highlightText(a.name, window._anlagenSuche)}</div>
+        ${a.trNummer ? `<div style="font-size:11px;color:var(--blue);font-weight:600;margin-top:3px">TR-Nr.: ${highlightText(a.trNummer, window._anlagenSuche)}</div>` : ''}
         <div class="anlage-meta">
           <span>${String(a.monat).padStart(2,'0')}.${a.jahr}</span>
           <span>${(a.notizen||[]).length} Notizen</span>
           ${faelligkeitHtml}
         </div>
-        ${a.beschreibung ? `<div style="font-size:11px;color:var(--text);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.beschreibung}</div>` : ''}
+        ${a.beschreibung ? `<div style="font-size:11px;color:var(--text);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${highlightText(a.beschreibung, window._anlagenSuche)}</div>` : ''}
         <button class="anlage-item-edit" title="Anlage bearbeiten"
           style="position:absolute;top:12px;right:34px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;padding:4px">✎</button>
         <button class="anlage-item-del" title="Anlage löschen"
@@ -1016,13 +1105,13 @@
             <div class="notiz-info">
               <span>${bewIcon(n.bewertung)}</span>
               <div>
-                <div class="notiz-title">${n.benennung || n.messpunkt || 'Ohne Benennung'}</div>
+                <div class="notiz-title">${highlightText(n.benennung || n.messpunkt || 'Ohne Benennung', window._notizSuche)}</div>
                 <div class="notiz-date">${formatDatum(n.datum)}</div>
               </div>
             </div>
             ${n.bemerkung ? `
             <div class="notiz-meta">
-              <div class="notiz-bem">${n.bemerkung}</div>
+              <div class="notiz-bem">${highlightText(n.bemerkung, window._notizSuche)}</div>
             </div>` : ''}
             ${n.erinnerung ? (() => {
               const e = erinnerungAnzeige(n.erinnerung);
