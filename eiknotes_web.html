@@ -45,6 +45,7 @@
     background: var(--bg); padding: 0 6px; }
   .sortier-select:focus { outline: none; border-color: var(--blue); }
   .such-leer { padding: 20px 16px; text-align: center; color: var(--muted); font-size: 12px; }
+  mark { background: #FFE58A; color: inherit; border-radius: 3px; padding: 0 1px; }
 
   .anlage-item { padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
   .anlage-item:hover { background: var(--bg); }
@@ -743,6 +744,21 @@
   }
 
   // Sucht Anlagen anhand Name, Beschreibung und Zeitraum (z.B. "03.2026").
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  // Hebt den Suchtreffer innerhalb eines Textes farblich hervor (wie in der
+  // Versuchsliste). Escaped den restlichen Text dabei mit, da die Felder
+  // sonst ungeschuetzt in innerHTML landen wuerden.
+  function highlightText(text, query) {
+    const s = String(text == null ? '' : text);
+    const q = (query || '').trim();
+    if (!q) return escHtml(s);
+    const idx = s.toLowerCase().indexOf(q.toLowerCase());
+    if (idx === -1) return escHtml(s);
+    return escHtml(s.slice(0, idx)) + '<mark>' + escHtml(s.slice(idx, idx + q.length)) + '</mark>' + escHtml(s.slice(idx + q.length));
+  }
+
   function anlagenFiltern(liste, suche) {
     const q = (suche || '').trim().toLowerCase();
     if (!q) return liste;
@@ -997,14 +1013,14 @@
       div.className = 'anlage-item' + (window._aktAnlageId === a.id ? ' active' : '');
       div.style.position = 'relative';
       div.innerHTML = `
-        <div class="anlage-name" style="padding-right:50px">${a.name}</div>
-        ${a.trNummer ? `<div style="font-size:11px;color:var(--blue);font-weight:600;margin-top:3px">TR-Nr.: ${a.trNummer}</div>` : ''}
+        <div class="anlage-name" style="padding-right:50px">${highlightText(a.name, window._anlagenSuche)}</div>
+        ${a.trNummer ? `<div style="font-size:11px;color:var(--blue);font-weight:600;margin-top:3px">TR-Nr.: ${highlightText(a.trNummer, window._anlagenSuche)}</div>` : ''}
         <div class="anlage-meta">
           <span>${String(a.monat).padStart(2,'0')}.${a.jahr}</span>
           <span>${(a.notizen||[]).length} Notizen</span>
           ${faelligkeitHtml}
         </div>
-        ${a.beschreibung ? `<div style="font-size:11px;color:var(--text);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.beschreibung}</div>` : ''}
+        ${a.beschreibung ? `<div style="font-size:11px;color:var(--text);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${highlightText(a.beschreibung, window._anlagenSuche)}</div>` : ''}
         <button class="anlage-item-edit" title="Anlage bearbeiten"
           style="position:absolute;top:12px;right:34px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;padding:4px">✎</button>
         <button class="anlage-item-del" title="Anlage löschen"
@@ -1089,13 +1105,13 @@
             <div class="notiz-info">
               <span>${bewIcon(n.bewertung)}</span>
               <div>
-                <div class="notiz-title">${n.benennung || n.messpunkt || 'Ohne Benennung'}</div>
+                <div class="notiz-title">${highlightText(n.benennung || n.messpunkt || 'Ohne Benennung', window._notizSuche)}</div>
                 <div class="notiz-date">${formatDatum(n.datum)}</div>
               </div>
             </div>
             ${n.bemerkung ? `
             <div class="notiz-meta">
-              <div class="notiz-bem">${n.bemerkung}</div>
+              <div class="notiz-bem">${highlightText(n.bemerkung, window._notizSuche)}</div>
             </div>` : ''}
             ${n.erinnerung ? (() => {
               const e = erinnerungAnzeige(n.erinnerung);
