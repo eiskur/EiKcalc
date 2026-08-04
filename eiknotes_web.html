@@ -525,7 +525,31 @@
   // (gleicher Monat/Jahr) die zeitlich zuletzt erstellte Anlage zuerst.
   // Alte Datensätze ohne 'erstellt' fallen auf einen festen alten Zeitpunkt
   // zurück, damit sie nicht fälschlich vor neu erstellten landen.
+  // Extrahiert das Datum aus einer TR-Nummer wie "TR 41 260508" -> 260508
+  // (Jahr*10000 + Monat*100 + Tag). Gibt null zurueck, wenn keine gueltige
+  // TR-Nummer mit Datum erkennbar ist.
+  function trDatumWert(a) {
+    if (!a || !a.trNummer) return null;
+    const digits = String(a.trNummer).replace(/[^0-9]/g, '');
+    if (digits.length < 6) return null;
+    const last6 = digits.slice(-6);
+    const yy = parseInt(last6.slice(0, 2), 10);
+    const mm = parseInt(last6.slice(2, 4), 10);
+    const dd = parseInt(last6.slice(4, 6), 10);
+    if (yy < 10 || yy > 35 || mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+    return yy * 10000 + mm * 100 + dd;
+  }
+  // Anlagen MIT TR-Nummer werden nach dem darin enthaltenen Datum sortiert -
+  // absteigend (neuestes zuerst), unabhaengig davon, wann die Anlage
+  // tatsaechlich angelegt wurde. Anlagen OHNE TR-Nummer fallen auf das
+  // Eintragedatum (Jahr/Monat + Erstellungszeitpunkt) zurueck. TR-Anlagen
+  // erscheinen dabei immer vor Nicht-TR-Anlagen.
   function anlagenVergleich(a, b) {
+    const ta = trDatumWert(a);
+    const tb = trDatumWert(b);
+    if (ta !== null && tb !== null) return tb - ta;
+    if (ta !== null && tb === null) return -1;
+    if (ta === null && tb !== null) return 1;
     if (a.jahr !== b.jahr) return b.jahr - a.jahr;
     if (a.monat !== b.monat) return b.monat - a.monat;
     const ae = a.erstellt ? new Date(a.erstellt).getTime() : 0;
