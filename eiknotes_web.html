@@ -47,6 +47,12 @@
   .such-leer { padding: 20px 16px; text-align: center; color: var(--muted); font-size: 12px; }
   mark { background: #FFE58A; color: inherit; border-radius: 3px; padding: 0 1px; }
 
+  .tr-filter-leiste { display: flex; gap: 4px; padding: 0 12px 8px; }
+  .tr-filter-btn { flex: 1; padding: 5px 4px; font-size: 11px; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--bg); color: var(--muted); cursor: pointer; }
+  .tr-filter-btn:hover { background: #EEF4FD; }
+  .tr-filter-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); font-weight: 600; }
+
   .anlage-item { padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
   .anlage-item:hover { background: var(--bg); }
   .anlage-item.active { background: #EEF4FD; border-left: 3px solid var(--blue); }
@@ -259,6 +265,11 @@
         <option value="alt">Älteste zuerst</option>
         <option value="name">Name A-Z</option>
       </select>
+    </div>
+    <div class="tr-filter-leiste" id="trFilterLeiste">
+      <button type="button" class="tr-filter-btn active" data-filter="alle" onclick="onTrFilterChange('alle')">Alle</button>
+      <button type="button" class="tr-filter-btn" data-filter="mit" onclick="onTrFilterChange('mit')">Mit TR</button>
+      <button type="button" class="tr-filter-btn" data-filter="ohne" onclick="onTrFilterChange('ohne')">Ohne TR</button>
     </div>
     <div id="anlagenListe"></div>
   </div>
@@ -723,6 +734,7 @@
   window._notizSuche = '';     // Suchtext für die Messnotizen-Liste (Hauptbereich)
   window._anlagenSort = 'neu'; // Sortierung Anlagen-Liste: neu | alt | name
   window._notizSort = 'datum_neu'; // Sortierung Notizen-Liste: datum_neu | datum_alt | bewertung | benennung
+  window._trFilter = 'alle';   // Filter Anlagen-Liste: alle | mit | ohne (TR-Nummer)
 
   // Führt einen Render-Aufruf aus, ohne dass der Fokus/die Cursor-Position
   // eines gerade getippten Such-Eingabefelds verloren geht (renderAnlagen()/
@@ -770,6 +782,21 @@
         || zeitraum.includes(q);
     });
   }
+
+  // Schränkt zusaetzlich nach 'alle' | 'mit' | 'ohne' TR-Nummer ein.
+  function trFiltern(liste, modus) {
+    if (modus === 'mit') return liste.filter(a => !!(a.trNummer || '').trim());
+    if (modus === 'ohne') return liste.filter(a => !(a.trNummer || '').trim());
+    return liste;
+  }
+
+  window.onTrFilterChange = function(modus) {
+    window._trFilter = modus;
+    document.querySelectorAll('.tr-filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filter === modus);
+    });
+    renderAnlagen();
+  };
 
   // Sucht Messnotizen anhand Benennung, Bemerkung, Zyklenzahl, Bewertung und Datum.
   function notizenFiltern(liste, suche) {
@@ -984,7 +1011,7 @@
     const el = document.getElementById('anlagenListe');
     const sortSelect = document.getElementById('anlagenSortSelect');
     if (sortSelect && sortSelect.value !== window._anlagenSort) sortSelect.value = window._anlagenSort;
-    const gefiltert = anlagenSortieren(anlagenFiltern(window._anlagen, window._anlagenSuche), window._anlagenSort);
+    const gefiltert = anlagenSortieren(trFiltern(anlagenFiltern(window._anlagen, window._anlagenSuche), window._trFilter), window._anlagenSort);
     document.getElementById('anlagenCount').textContent = window._anlagenSuche
       ? gefiltert.length + ' / ' + window._anlagen.length
       : window._anlagen.length + ' Anlagen';
