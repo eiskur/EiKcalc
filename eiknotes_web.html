@@ -665,6 +665,11 @@
   window.saveToFirebase = async function() {
     console.log('saveToFirebase called, anlagen:', window._anlagen.length);
     console.log('_set:', typeof window._set, '_dbRef:', typeof window._dbRef);
+    // Zeitstempel "zuletzt geaendert" auf der gerade aktiven Anlage setzen -
+    // fast alle Speicher-Aktionen (Notiz hinzufuegen/bearbeiten, Anlage
+    // bearbeiten) passieren im Kontext der gerade ausgewaehlten Anlage.
+    const aktiveAnlage = window._anlagen.find(a => a.id === window._aktAnlageId);
+    if (aktiveAnlage) aktiveAnlage.geaendertAm = new Date().toISOString();
     const data = {};
     for (const a of window._anlagen) data[a.id] = a;
     console.log('data to write:', JSON.stringify(data).substring(0, 200));
@@ -1085,6 +1090,7 @@
         <div>
           <h2>${a.name}</h2>
           <p>${a.trNummer ? `TR-Nr.: ${a.trNummer} · ` : ''}${String(a.monat).padStart(2,'0')}.${a.jahr} · ${notizenAlle.length} Notiz${notizenAlle.length===1?'':'en'}</p>
+          ${a.geaendertAm ? `<p style="margin-top:2px;color:var(--muted);font-size:11.5px">Zuletzt geändert: ${formatDatum(a.geaendertAm)}</p>` : ''}
           ${a.beschreibung ? `<p style="margin-top:4px;color:var(--text);font-size:13px">${a.beschreibung}</p>` : ''}
         </div>
         <div style="display:flex;gap:8px">
@@ -1405,6 +1411,37 @@
   }
   window.renderNotizFotoGrid = renderNotizFotoGrid;
 
+  // Verkleinert/komprimiert ein Foto vor dem Hochladen (spart Speicherplatz/
+  // Kosten in Firebase Storage, ohne beim Betrachten sichtbar an Qualität zu
+  // verlieren). Nicht-Bild-Dateien werden unveraendert durchgereicht. Falls
+  // das Komprimieren aus irgendeinem Grund fehlschlaegt oder das Ergebnis
+  // nicht kleiner als das Original ist, wird das Original verwendet.
+  function komprimiereBild(file, maxBreite = 1600, maxHoehe = 1600, qualitaet = 0.82) {
+    return new Promise((resolve) => {
+      if (!file.type || !file.type.startsWith('image/')) { resolve(file); return; }
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        if (width > maxBreite || height > maxHoehe) {
+          const skala = Math.min(maxBreite / width, maxHoehe / height);
+          width = Math.round(width * skala);
+          height = Math.round(height * skala);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          resolve(blob && blob.size < file.size ? blob : file);
+        }, 'image/jpeg', qualitaet);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+
   async function handleNotizFotoUpload(event) {
     const files = Array.from(event.target.files || []);
     event.target.value = ''; // erlaubt erneutes Auswählen derselben Datei
@@ -1419,7 +1456,8 @@
       renderNotizFotoGrid();
       try {
         const sRef = window._storageRef(window._storage, `eiknotes/${anlageId}/${notizId}/${uuid()}.jpg`);
-        await window._uploadBytes(sRef, file);
+        const hochzuladen = await komprimiereBild(file);
+        await window._uploadBytes(sRef, hochzuladen);
         const url = await window._getDownloadURL(sRef);
         const i = window._aktFotos.findIndex(f => f.id === fotoId);
         if (i >= 0) window._aktFotos[i].url = url;
@@ -1764,7 +1802,8 @@
     renderNotizFotoGrid();
     try {
       const sRef = window._storageRef(window._storage, `eiknotes/${anlageId}/${notizId}/${uuid()}.jpg`);
-      await window._uploadBytes(sRef, datei);
+      const hochzuladen = await komprimiereBild(datei);
+      await window._uploadBytes(sRef, hochzuladen);
       const url = await window._getDownloadURL(sRef);
       window._aktFotos[i].url = url;
       window._aktFotos[i].annotationen = [];
