@@ -505,18 +505,6 @@
     }
   };
 
-  // Beim Start sofort die lokal gespeicherte Kopie zeigen, falls vorhanden -
-  // so sieht man auch ganz ohne Internet sofort etwas, statt auf eine
-  // eventuell nie eintreffende Firebase-Verbindung zu warten.
-  (function() {
-    const lokal = lokaleKopieLaden();
-    if (lokal && lokal.length) {
-      window._anlagen = lokal;
-      if (typeof renderAnlagen === 'function') renderAnlagen();
-      if (istSyncAusstehend()) window._setSyncStatus('pending');
-    }
-  })();
-
   window.addEventListener('online', () => {
     if (istSyncAusstehend()) window.saveToFirebase();
   });
@@ -650,6 +638,20 @@
   window._getDownloadURL = getDownloadURL;
   window._deleteObject = deleteObject;
   window._fotoUrls = {};
+
+  // Beim Start sofort die lokal gespeicherte Kopie zeigen, falls vorhanden -
+  // so sieht man auch ganz ohne Internet sofort etwas, statt auf die
+  // Firebase-Anmeldung/Verbindung warten zu muessen (die bei fehlendem Netz
+  // erst einen Timeout durchlaufen wuerde). Laeuft bewusst NACH der Zeile
+  // "window.anlagenVergleich = ..." oben, da renderAnlagen() das braucht.
+  (function() {
+    const lokal = lokaleKopieLaden();
+    if (lokal && lokal.length) {
+      window._anlagen = lokal;
+      if (typeof renderAnlagen === 'function') renderAnlagen();
+      if (istSyncAusstehend()) window._setSyncStatus('pending');
+    }
+  })();
 
   // Anonyme Anmeldung: nötig, damit die Datenbank-Regeln "auth != null"
   // verlangen können, statt komplett offen ("true"/"true") zu sein - siehe
