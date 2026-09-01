@@ -227,6 +227,9 @@
   .erinnerung-banner { padding: 10px 16px; font-size: 13px; font-weight: 600; color: #7A1F0A; background: #FBE4D8;
     border-bottom: 1px solid #F0B99A; cursor: pointer; }
   .erinnerung-banner:hover { background: #F8D5C0; }
+  .sync-status { padding: 8px 16px; font-size: 12.5px; font-weight: 600; border-bottom: 1px solid; }
+  .sync-status.sync-pending { color: #7A5B00; background: #FFF6DD; border-color: #F0DA96; }
+  .sync-status.sync-offline { color: #7A1F0A; background: #FBE4D8; border-color: #F0B99A; }
   .status-ok { color: var(--green); }
   .status-err { color: var(--red); }
 
@@ -246,6 +249,7 @@
 </header>
 
 <div id="statusBar" class="status-bar">Bereit</div>
+<div id="syncStatus" class="sync-status" style="display:none;"></div>
 <div id="erinnerungBanner" class="erinnerung-banner" style="display:none;" onclick="erinnerungBannerKlick()"></div>
 
 <div class="container">
@@ -459,6 +463,67 @@
   import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
   import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
+  // ── Offline-Unterstuetzung ────────────────────────────────────────────
+  // Speichert bei jeder Aenderung zusaetzlich lokal im Browser
+  // (localStorage), damit nichts verloren geht, wenn man offline ist und
+  // den Browser schliesst, bevor die Aenderung an Firebase geschickt werden
+  // konnte. Beim naechsten Oeffnen (auch ganz ohne Internet) wird zuerst die
+  // lokale Kopie angezeigt, und sobald wieder eine Verbindung da ist, wird
+  // automatisch nachsynchronisiert.
+  const LOKALER_CACHE_KEY = 'eiknotes_anlagen_cache';
+  const LOKALER_PENDING_KEY = 'eiknotes_sync_pending';
+
+  function lokalSpeichern(anlagen) {
+    try { localStorage.setItem(LOKALER_CACHE_KEY, JSON.stringify(anlagen)); } catch (e) {}
+  }
+  function lokaleKopieLaden() {
+    try {
+      const roh = localStorage.getItem(LOKALER_CACHE_KEY);
+      return roh ? JSON.parse(roh) : null;
+    } catch (e) { return null; }
+  }
+  function istSyncAusstehend() {
+    try { return localStorage.getItem(LOKALER_PENDING_KEY) === '1'; } catch (e) { return false; }
+  }
+  function setzeSyncAusstehend(ausstehend) {
+    try { localStorage.setItem(LOKALER_PENDING_KEY, ausstehend ? '1' : '0'); } catch (e) {}
+  }
+  window._setSyncStatus = function(status) {
+    // status: 'synced' | 'pending' | 'offline'
+    const el = document.getElementById('syncStatus');
+    if (!el) return;
+    if (status === 'synced') {
+      el.style.display = 'none';
+    } else if (status === 'pending') {
+      el.textContent = '⏳ Änderungen werden synchronisiert, sobald eine Verbindung besteht …';
+      el.className = 'sync-status sync-pending';
+      el.style.display = 'block';
+    } else {
+      el.textContent = '📴 Offline – Änderungen werden lokal gespeichert und automatisch übertragen, sobald wieder Internet da ist';
+      el.className = 'sync-status sync-offline';
+      el.style.display = 'block';
+    }
+  };
+
+  // Beim Start sofort die lokal gespeicherte Kopie zeigen, falls vorhanden -
+  // so sieht man auch ganz ohne Internet sofort etwas, statt auf eine
+  // eventuell nie eintreffende Firebase-Verbindung zu warten.
+  (function() {
+    const lokal = lokaleKopieLaden();
+    if (lokal && lokal.length) {
+      window._anlagen = lokal;
+      if (typeof renderAnlagen === 'function') renderAnlagen();
+      if (istSyncAusstehend()) window._setSyncStatus('pending');
+    }
+  })();
+
+  window.addEventListener('online', () => {
+    if (istSyncAusstehend()) window.saveToFirebase();
+  });
+  window.addEventListener('offline', () => {
+    window._setSyncStatus('offline');
+  });
+
   // ── Deep-Link von der Versuchsliste (?tr=TR%2001%20140820&name=...&beschreibung=...) ──
   // Springt beim Aufruf mit einer TR-Nummer in der URL direkt zur passenden
   // Anlage (falls schon vorhanden) oder öffnet den "Neue Anlage"-Dialog
@@ -630,11 +695,25 @@
 
   // Live-Sync Anlagen
   onValue(dbRef, (snap) => {
+    let serverAnlagen;
     if (snap.exists()) {
       const data = snap.val();
-      window._anlagen = Object.values(data).sort(anlagenVergleich);
+      serverAnlagen = Object.values(data).sort(anlagenVergleich);
     } else {
-      window._anlagen = [];
+      serverAnlagen = [];
+    }
+    // Falls von der letzten Sitzung noch nicht synchronisierte lokale
+    // Aenderungen existieren, diese nicht durch eine evtl. aeltere
+    // Server-Version ueberschreiben - stattdessen die lokale Version
+    // behalten und gleich versuchen, sie jetzt nachzuliefern.
+    if (istSyncAusstehend()) {
+      const lokal = lokaleKopieLaden();
+      window._anlagen = (lokal && lokal.length) ? lokal : serverAnlagen;
+      window.saveToFirebase();
+    } else {
+      window._anlagen = serverAnlagen;
+      lokalSpeichern(window._anlagen);
+      window._setSyncStatus('synced');
     }
     window._patchFotoUrls();
     renderAnlagen();
@@ -644,6 +723,7 @@
     pruefeFaelligeErinnerungen();
   }, (err) => {
     setStatus('Firebase Fehler: ' + err.message, false);
+    window._setSyncStatus('offline');
   });
 
   // Live-Sync Foto-URLs (unabhängig vom Anlagen-Sync)
@@ -670,19 +750,36 @@
     // bearbeiten) passieren im Kontext der gerade ausgewaehlten Anlage.
     const aktiveAnlage = window._anlagen.find(a => a.id === window._aktAnlageId);
     if (aktiveAnlage) aktiveAnlage.geaendertAm = new Date().toISOString();
+
+    // Immer zuerst lokal sichern - geht so nie verloren, selbst wenn
+    // Firebase gerade nicht erreichbar ist. Wird erst wieder als "erledigt"
+    // markiert, wenn der Schreibvorgang unten tatsaechlich bestaetigt ist.
+    lokalSpeichern(window._anlagen);
+    setzeSyncAusstehend(true);
+    window._setSyncStatus('pending');
+
     const data = {};
     for (const a of window._anlagen) data[a.id] = a;
     console.log('data to write:', JSON.stringify(data).substring(0, 200));
     try {
       await window._set(window._dbRef, data);
       console.log('Firebase write SUCCESS');
+      setzeSyncAusstehend(false);
+      window._setSyncStatus('synced');
       setStatus('✓ Gespeichert und synchronisiert', true);
       renderAnlagen();
       if (window._aktAnlageId) renderNotizen();
       pruefeFaelligeErinnerungen();
     } catch(e) {
-      console.error('Firebase write FAILED:', e);
-      setStatus('Fehler beim Speichern: ' + e.message, false);
+      // Bewusst kein throw: die Aenderung ist lokal sicher gespeichert und
+      // wird automatisch nachgeholt (siehe 'online'-Event weiter oben bzw.
+      // beim naechsten Verbindungsaufbau), der Nutzer soll trotzdem normal
+      // weiterarbeiten koennen, ohne eine Fehlermeldung zu bekommen.
+      console.error('Firebase write FAILED, bleibt lokal gespeichert:', e);
+      window._setSyncStatus('offline');
+      setStatus('Offline gespeichert – wird später synchronisiert', true);
+      renderAnlagen();
+      if (window._aktAnlageId) renderNotizen();
     }
   };
 
