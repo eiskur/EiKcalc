@@ -529,7 +529,10 @@
       window._deepLinkTr = {
         tr: tr.trim(),
         name: params.get('name') || '',
-        beschreibung: params.get('beschreibung') || ''
+        beschreibung: params.get('beschreibung') || '',
+        versuchStatus: params.get('versuchStatus') || '',
+        berichtPfad: params.get('berichtPfad') || '',
+        berichtName: params.get('berichtName') || ''
       };
     }
   })();
@@ -546,15 +549,32 @@
       // das hier automatisch übernommen, statt den alten Stand zu zeigen.
       const neuerName = (window._deepLinkTr.name || '').trim();
       const neueBeschreibung = (window._deepLinkTr.beschreibung || '').trim();
+      const neuerStatus = (window._deepLinkTr.versuchStatus || '').trim();
+      const neuerBerichtPfad = (window._deepLinkTr.berichtPfad || '').trim();
+      const neuerBerichtName = (window._deepLinkTr.berichtName || '').trim();
       const hatSichGeaendert =
         (neuerName && neuerName !== (treffer.name || '').trim()) ||
-        (neueBeschreibung && neueBeschreibung !== (treffer.beschreibung || '').trim());
+        (neueBeschreibung && neueBeschreibung !== (treffer.beschreibung || '').trim()) ||
+        (neuerStatus && neuerStatus !== (treffer.versuchStatus || '').trim()) ||
+        (neuerBerichtPfad && neuerBerichtPfad !== (treffer.berichtPfad || '').trim());
       if (hatSichGeaendert) {
         if (neuerName) treffer.name = neuerName;
         if (neueBeschreibung) treffer.beschreibung = neueBeschreibung;
+        // Status/Bericht werden nur uebernommen, wenn die Versuchsliste sie
+        // mitschickt (also der Versuch dort tatsaechlich als abgeschlossen
+        // mit Bericht markiert ist) - so wird eine bestehende Eintragung
+        // nicht versehentlich wieder geloescht, wenn der Link ohne diese
+        // Parameter aufgerufen wird.
+        if (neuerStatus) treffer.versuchStatus = neuerStatus;
+        if (neuerBerichtPfad) treffer.berichtPfad = neuerBerichtPfad;
+        if (neuerBerichtName) treffer.berichtName = neuerBerichtName;
+        console.log('[DeepLink-Diagnose] treffer nach Mutation:', JSON.stringify({id: treffer.id, versuchStatus: treffer.versuchStatus, berichtPfad: treffer.berichtPfad}));
+        console.log('[DeepLink-Diagnose] Objekt-Identitaet: ist treffer noch Teil von window._anlagen?', window._anlagen.includes(treffer));
         await window.saveToFirebase();
-        setStatus('✓ Von Versuchsliste geöffnet und Benennung aktualisiert: TR-Nr. ' + window._deepLinkTr.tr, true);
+        console.log('[DeepLink-Diagnose] Nach saveToFirebase, treffer.versuchStatus:', treffer.versuchStatus, '- window._anlagen Eintrag:', JSON.stringify(window._anlagen.find(a=>a.id===treffer.id)?.versuchStatus));
+        setStatus('✓ Von Versuchsliste geöffnet und aktualisiert: TR-Nr. ' + window._deepLinkTr.tr, true);
       } else {
+        console.log('[DeepLink-Diagnose] hatSichGeaendert war FALSE - keine Aenderung ausgeloest. neuerStatus:', JSON.stringify(neuerStatus), 'treffer.versuchStatus:', JSON.stringify(treffer.versuchStatus));
         setStatus('✓ Von Versuchsliste geöffnet: TR-Nr. ' + window._deepLinkTr.tr, true);
       }
       renderAnlagen();
@@ -744,7 +764,32 @@
     if (window._aktAnlageId) renderNotizen();
   };
 
+  let _speichernLaeuft = false;
+  let _speichernErneutNoetig = false;
   window.saveToFirebase = async function() {
+    // Schutz gegen sich ueberlappende Speichervorgaenge: laeuft bereits einer,
+    // wird dieser Aufruf nicht parallel gestartet (das koennte sonst dazu
+    // fuehren, dass ein Vorgang die frischen Aenderungen eines anderen, noch
+    // laufenden Vorgangs mit einem aelteren Datenstand ueberschreibt), sondern
+    // nur vorgemerkt und direkt danach nachgeholt.
+    if (_speichernLaeuft) {
+      _speichernErneutNoetig = true;
+      console.log('[Speicher-Diagnose] saveToFirebase lief bereits - wird nach Abschluss erneut ausgefuehrt');
+      return;
+    }
+    _speichernLaeuft = true;
+    try {
+      await _saveToFirebaseIntern();
+    } finally {
+      _speichernLaeuft = false;
+      if (_speichernErneutNoetig) {
+        _speichernErneutNoetig = false;
+        await window.saveToFirebase();
+      }
+    }
+  };
+
+  async function _saveToFirebaseIntern() {
     console.log('saveToFirebase called, anlagen:', window._anlagen.length);
     console.log('_set:', typeof window._set, '_dbRef:', typeof window._dbRef);
     // Zeitstempel "zuletzt geaendert" auf der gerade aktiven Anlage setzen -
@@ -783,7 +828,7 @@
       renderAnlagen();
       if (window._aktAnlageId) renderNotizen();
     }
-  };
+  }
 
   // Hinweis: es gab hier vorher eine zweite, doppelte Definition von
   // window.syncFirebase weiter unten, die diese hier komplett überschrieben
@@ -1149,6 +1194,7 @@
         <div class="anlage-meta">
           <span>${String(a.monat).padStart(2,'0')}.${a.jahr}</span>
           <span>${(a.notizen||[]).length} Notizen</span>
+          ${a.versuchStatus === 'abgeschlossen' ? '<span style="color:#1E7B34;font-weight:600">✓ abgeschlossen</span>' : ''}
           ${faelligkeitHtml}
         </div>
         ${a.beschreibung ? `<div style="font-size:11px;color:var(--text);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${highlightText(a.beschreibung, window._anlagenSuche)}</div>` : ''}
@@ -1190,6 +1236,11 @@
           <h2>${a.name}</h2>
           <p>${a.trNummer ? `TR-Nr.: ${a.trNummer} · ` : ''}${String(a.monat).padStart(2,'0')}.${a.jahr} · ${notizenAlle.length} Notiz${notizenAlle.length===1?'':'en'}</p>
           ${a.geaendertAm ? `<p style="margin-top:2px;color:var(--muted);font-size:11.5px">Zuletzt geändert: ${formatDatum(a.geaendertAm)}</p>` : ''}
+          ${a.versuchStatus === 'abgeschlossen' ? `
+            <p style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="background:#E4F3E6;color:#1E7B34;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px">✓ Versuch abgeschlossen</span>
+              ${a.berichtPfad ? `<a href="${a.berichtPfad}" target="_blank" rel="noopener" style="font-size:12px;color:var(--blue);font-weight:600;text-decoration:none;border:1px solid var(--blue);border-radius:6px;padding:3px 9px">📄 ${a.berichtName ? a.berichtName : 'Bericht öffnen'}</a>` : ''}
+            </p>` : ''}
           ${a.beschreibung ? `<p style="margin-top:4px;color:var(--text);font-size:13px">${a.beschreibung}</p>` : ''}
         </div>
         <div style="display:flex;gap:8px">
