@@ -53,9 +53,10 @@
   .tr-filter-btn:hover { background: #EEF4FD; }
   .tr-filter-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); font-weight: 600; }
 
-  .anlage-item { padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+  .anlage-item { padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; border-left: 3px solid transparent; }
   .anlage-item:hover { background: var(--bg); }
-  .anlage-item.active { background: #EEF4FD; border-left: 3px solid var(--blue); }
+  .anlage-item.active { background: #EEF4FD; border-left-color: var(--blue); }
+  .anlage-item.anlage-abgeschlossen:not(.active) { border-left-color: #1E7B34; }
   .anlage-name { font-weight: 700; font-size: 14px; color: var(--text); }
   .anlage-meta { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; gap: 10px; align-items: center; }
   .notiz-foto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-bottom: 6px; }
@@ -1204,7 +1205,7 @@
         faelligkeitHtml = `<span class="badge" title="${e.text}" style="background:${e.farbe}">⏰ ${kurzText}</span>`;
       }
       const div = document.createElement('div');
-      div.className = 'anlage-item' + (window._aktAnlageId === a.id ? ' active' : '');
+      div.className = 'anlage-item' + (window._aktAnlageId === a.id ? ' active' : '') + (a.versuchStatus === 'abgeschlossen' ? ' anlage-abgeschlossen' : '');
       div.style.position = 'relative';
       div.innerHTML = `
         <div class="anlage-name" style="padding-right:50px">${highlightText(a.name, window._anlagenSuche)}</div>
