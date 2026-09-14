@@ -56,8 +56,9 @@
   .anlage-item { padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; border-left: 3px solid transparent; }
   .anlage-item:hover { background: var(--bg); }
   .anlage-item.active { background: #EEF4FD; border-left-color: var(--blue); }
-  .anlage-item.anlage-abgeschlossen:not(.active) { border-left-color: #1E7B34; background: #E9F7EC; }
-  .anlage-item.anlage-abgeschlossen:not(.active):hover { background: #DCF0E1; }
+  .anlage-item.anlage-abgeschlossen { background: #E9F7EC; }
+  .anlage-item.anlage-abgeschlossen:hover { background: #DCF0E1; }
+  .anlage-item.anlage-abgeschlossen:not(.active) { border-left-color: #1E7B34; }
   .anlage-name { font-weight: 700; font-size: 14px; color: var(--text); }
   .anlage-meta { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; gap: 10px; align-items: center; }
   .notiz-foto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-bottom: 6px; }
@@ -718,6 +719,7 @@
   };
 
   // Live-Sync Anlagen
+  let _initialerLadevorgangErledigt = false;
   onValue(dbRef, (snap) => {
     let serverAnlagen;
     if (snap.exists()) {
@@ -726,11 +728,14 @@
     } else {
       serverAnlagen = [];
     }
-    // Falls von der letzten Sitzung noch nicht synchronisierte lokale
-    // Aenderungen existieren, diese nicht durch eine evtl. aeltere
-    // Server-Version ueberschreiben - stattdessen die lokale Version
-    // behalten und gleich versuchen, sie jetzt nachzuliefern.
-    if (istSyncAusstehend()) {
+    // Nur beim ALLERERSTEN Laden der Seite pruefen, ob von einer frueheren
+    // (z.B. offline beendeten) Sitzung noch unsynchronisierte Aenderungen
+    // warten. Wichtig: NICHT bei jedem weiteren Firebase-Update pruefen -
+    // sonst wuerde jeder eigene Speichervorgang (der kurzzeitig den
+    // "ausstehend"-Status setzt, bevor die Bestaetigung eintrifft) hier
+    // erneut ein "saveToFirebase()" ausloesen und den Status dauerhaft auf
+    // "wird synchronisiert" haengen lassen, obwohl laengst alles fertig ist.
+    if (!_initialerLadevorgangErledigt && istSyncAusstehend()) {
       const lokal = lokaleKopieLaden();
       window._anlagen = (lokal && lokal.length) ? lokal : serverAnlagen;
       window.saveToFirebase();
@@ -739,6 +744,7 @@
       lokalSpeichern(window._anlagen);
       window._setSyncStatus('synced');
     }
+    _initialerLadevorgangErledigt = true;
     window._patchFotoUrls();
     renderAnlagen();
     if (window._aktAnlageId) renderNotizen();
@@ -1261,10 +1267,9 @@
               <span style="background:#E4F3E6;color:#1E7B34;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px">✓ Versuch abgeschlossen</span>
               ${a.berichtPfad ? `
                 <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                  <a href="${escHtml(a.berichtPfad)}" target="_blank" rel="noopener" style="font-size:12px;color:var(--blue);font-weight:600;text-decoration:none;border:1px solid var(--blue);border-radius:6px;padding:3px 9px">📄 Bericht öffnen</a>
-                  <button class="copy-pfad-btn" data-pfad="${escHtml(a.berichtPfad)}" title="Pfad kopieren, falls der Link nicht direkt öffnet (z.B. wegen Browser-Sicherheitssperre)" style="font-size:11px;color:var(--muted);border:1px solid var(--border);background:white;border-radius:6px;padding:3px 9px;cursor:pointer">📋 Pfad kopieren</button>
+                  <button class="copy-pfad-btn" data-pfad="${escHtml(a.berichtPfad)}" title="Kopiert den Netzlaufwerk-Pfad zum Bericht - danach mit Win+R und Strg+V öffnen" style="font-size:12px;color:var(--blue);font-weight:600;border:1px solid var(--blue);background:white;border-radius:6px;padding:3px 9px;cursor:pointer">📋 Berichtspfad kopieren</button>
                 </div>
-                <div style="margin-top:4px;font-size:10.5px;color:var(--muted);word-break:break-all;user-select:all" title="Zum manuellen Kopieren markieren, falls 'Bericht öffnen' nicht funktioniert">${escHtml(a.berichtPfad)}</div>
+                <div style="margin-top:4px;font-size:10.5px;color:var(--muted);word-break:break-all;user-select:all" title="Zum manuellen Kopieren markieren">${escHtml(a.berichtPfad)}</div>
               ` : ''}
             </div>` : ''}
           ${a.beschreibung ? `<p style="margin-top:4px;color:var(--text);font-size:13px">${a.beschreibung}</p>` : ''}
