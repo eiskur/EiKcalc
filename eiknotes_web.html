@@ -53,9 +53,18 @@
   .tr-filter-btn:hover { background: #EEF4FD; }
   .tr-filter-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); font-weight: 600; }
 
-  .anlage-item { padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+  .anlage-item { padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; border-left: 3px solid transparent; }
   .anlage-item:hover { background: var(--bg); }
-  .anlage-item.active { background: #EEF4FD; border-left: 3px solid var(--blue); }
+  .anlage-item.anlage-abgeschlossen { background: #E9F7EC; }
+  .anlage-item.anlage-abgeschlossen:hover { background: #DCF0E1; }
+  .anlage-item.anlage-abgeschlossen:not(.active) { border-left-color: #1E7B34; }
+  /* Deutlich dunkleres Blau fuer den aktuell angewaehlten Eintrag (vorher
+     #EEF4FD - kaum unterscheidbar von Hover-Grauton var(--bg)/#F0F4FA).
+     Bewusst NACH der "abgeschlossen"-Regel platziert, damit ein ausgewaehlter
+     Eintrag auch dann klar erkennbar bleibt, wenn er zugleich als
+     abgeschlossen markiert ist (vorher gewann dort faelschlich der gruene
+     Abgeschlossen-Hintergrund, da beide Regeln dieselbe Spezifitaet hatten). */
+  .anlage-item.active { background: #CFE3FA; border-left-color: var(--blue); border-left-width: 4px; }
   .anlage-name { font-weight: 700; font-size: 14px; color: var(--text); }
   .anlage-meta { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; gap: 10px; align-items: center; }
   .notiz-foto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-bottom: 6px; }
@@ -716,6 +725,7 @@
   };
 
   // Live-Sync Anlagen
+  let _initialerLadevorgangErledigt = false;
   onValue(dbRef, (snap) => {
     let serverAnlagen;
     if (snap.exists()) {
@@ -724,11 +734,14 @@
     } else {
       serverAnlagen = [];
     }
-    // Falls von der letzten Sitzung noch nicht synchronisierte lokale
-    // Aenderungen existieren, diese nicht durch eine evtl. aeltere
-    // Server-Version ueberschreiben - stattdessen die lokale Version
-    // behalten und gleich versuchen, sie jetzt nachzuliefern.
-    if (istSyncAusstehend()) {
+    // Nur beim ALLERERSTEN Laden der Seite pruefen, ob von einer frueheren
+    // (z.B. offline beendeten) Sitzung noch unsynchronisierte Aenderungen
+    // warten. Wichtig: NICHT bei jedem weiteren Firebase-Update pruefen -
+    // sonst wuerde jeder eigene Speichervorgang (der kurzzeitig den
+    // "ausstehend"-Status setzt, bevor die Bestaetigung eintrifft) hier
+    // erneut ein "saveToFirebase()" ausloesen und den Status dauerhaft auf
+    // "wird synchronisiert" haengen lassen, obwohl laengst alles fertig ist.
+    if (!_initialerLadevorgangErledigt && istSyncAusstehend()) {
       const lokal = lokaleKopieLaden();
       window._anlagen = (lokal && lokal.length) ? lokal : serverAnlagen;
       window.saveToFirebase();
@@ -737,6 +750,7 @@
       lokalSpeichern(window._anlagen);
       window._setSyncStatus('synced');
     }
+    _initialerLadevorgangErledigt = true;
     window._patchFotoUrls();
     renderAnlagen();
     if (window._aktAnlageId) renderNotizen();
@@ -1147,6 +1161,24 @@
     renderNotizen();
   }
 
+  // Kopieren-Button für den Berichtspfad - per Event-Delegation (statt
+  // Inline-onclick mit dem Pfad als Text), da Netzlaufwerk-Pfade Backslashes
+  // enthalten, die in einem eingebetteten JS-Textstring faelschlich als
+  // Escape-Zeichen interpretiert wuerden und Teile des Pfades verschlucken
+  // koennten (das exakt gleiche Problem hatten wir schon einmal bei der
+  // Versuchsliste).
+  document.addEventListener('click', function(ev) {
+    const btn = ev.target.closest('.copy-pfad-btn');
+    if (!btn) return;
+    const pfad = btn.getAttribute('data-pfad');
+    if (!pfad) return;
+    navigator.clipboard.writeText(pfad).then(() => {
+      setStatus('✓ Pfad kopiert – in den Windows-Explorer oder mit Win+R einfügen', true);
+    }).catch(() => {
+      setStatus('Kopieren nicht möglich – bitte den Pfad-Text darunter manuell markieren und kopieren', false);
+    });
+  });
+
   function dokIcon(name) {
     const ext = (name || '').toLowerCase().split('.').pop();
     if (ext === 'pdf') return '📕';
@@ -1186,7 +1218,7 @@
         faelligkeitHtml = `<span class="badge" title="${e.text}" style="background:${e.farbe}">⏰ ${kurzText}</span>`;
       }
       const div = document.createElement('div');
-      div.className = 'anlage-item' + (window._aktAnlageId === a.id ? ' active' : '');
+      div.className = 'anlage-item' + (window._aktAnlageId === a.id ? ' active' : '') + (a.versuchStatus === 'abgeschlossen' ? ' anlage-abgeschlossen' : '');
       div.style.position = 'relative';
       div.innerHTML = `
         <div class="anlage-name" style="padding-right:50px">${highlightText(a.name, window._anlagenSuche)}</div>
@@ -1237,10 +1269,15 @@
           <p>${a.trNummer ? `TR-Nr.: ${a.trNummer} · ` : ''}${String(a.monat).padStart(2,'0')}.${a.jahr} · ${notizenAlle.length} Notiz${notizenAlle.length===1?'':'en'}</p>
           ${a.geaendertAm ? `<p style="margin-top:2px;color:var(--muted);font-size:11.5px">Zuletzt geändert: ${formatDatum(a.geaendertAm)}</p>` : ''}
           ${a.versuchStatus === 'abgeschlossen' ? `
-            <p style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <div style="margin-top:6px">
               <span style="background:#E4F3E6;color:#1E7B34;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px">✓ Versuch abgeschlossen</span>
-              ${a.berichtPfad ? `<a href="${a.berichtPfad}" target="_blank" rel="noopener" style="font-size:12px;color:var(--blue);font-weight:600;text-decoration:none;border:1px solid var(--blue);border-radius:6px;padding:3px 9px">📄 ${a.berichtName ? a.berichtName : 'Bericht öffnen'}</a>` : ''}
-            </p>` : ''}
+              ${a.berichtPfad ? `
+                <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <button class="copy-pfad-btn" data-pfad="${escHtml(a.berichtPfad)}" title="Kopiert den Netzlaufwerk-Pfad zum Bericht - danach mit Win+R und Strg+V öffnen" style="font-size:12px;color:var(--blue);font-weight:600;border:1px solid var(--blue);background:white;border-radius:6px;padding:3px 9px;cursor:pointer">📋 Berichtspfad kopieren</button>
+                </div>
+                <div style="margin-top:4px;font-size:10.5px;color:var(--muted);word-break:break-all;user-select:all" title="Zum manuellen Kopieren markieren">${escHtml(a.berichtPfad)}</div>
+              ` : ''}
+            </div>` : ''}
           ${a.beschreibung ? `<p style="margin-top:4px;color:var(--text);font-size:13px">${a.beschreibung}</p>` : ''}
         </div>
         <div style="display:flex;gap:8px">
